@@ -36,7 +36,7 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ setPage 
 
     try {
       // --- INDHA LINE THAAN BACKEND-AI CALL PANNUDHU ---
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch('https://b-smart-glass-aura-vision.onrender.com/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,4 +123,5 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ setPage 
       </div>
     </div>
   );
+
 };
