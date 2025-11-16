@@ -41,7 +41,7 @@ export const GuideAiChatScreen: React.FC<GuideAiChatScreenProps> = ({ setPage })
 
     try {
       // Call backend API (preferred over direct client-side keys)
-      const response = await fetch('http://localhost:5000/api/ai/chat', {
+      const response = await fetch('https://b-smart-glass-aura-vision.onrender.com/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: currentInput }),
@@ -155,3 +155,4 @@ export const GuideAiChatScreen: React.FC<GuideAiChatScreenProps> = ({ setPage })
     </div>
   );
 };
+
