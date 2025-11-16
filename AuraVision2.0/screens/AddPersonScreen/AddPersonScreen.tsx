@@ -51,7 +51,7 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
 
     try {
         // --- API CALL (Backend-க்கு அனுப்புகிறோம்) ---
-        const response = await fetch('http://localhost:5000/api/faces/add', {
+        const response = await fetch('https://b-smart-glass-aura-vision.onrender.com/api/faces/add', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -148,4 +148,5 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
       </div>
     </div>
   );
+
 };
