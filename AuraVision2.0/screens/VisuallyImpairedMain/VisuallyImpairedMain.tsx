@@ -45,7 +45,7 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
 
   // 2. Socket Connect & Camera Start (Immediately)
   useEffect(() => {
-    const newSocket = io("http://localhost:5000");
+    const newSocket = io("https://b-smart-glass-aura-vision.onrender.com");
     setSocket(newSocket);
 
     const startCamera = async () => {
@@ -157,7 +157,7 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
     setStatus(language === 'TG' ? "Yosikkiren... 🧠" : "Thinking... 🧠");
     
     try {
-      const response = await fetch('http://localhost:5000/api/ai/describe', {
+      const response = await fetch('https://b-smart-glass-aura-vision.onrender.com/api/ai/describe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64, prompt: query, language }),
@@ -225,4 +225,5 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
       </footer>
     </div>
   );
+
 };
