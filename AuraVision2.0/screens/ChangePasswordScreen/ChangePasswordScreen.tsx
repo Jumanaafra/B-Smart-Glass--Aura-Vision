@@ -47,7 +47,7 @@ export const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ setP
     setIsLoading(true);
 
     try {
-        const response = await fetch('http://localhost:5000/api/auth/change-password', {
+        const response = await fetch('https://b-smart-glass-aura-vision.onrender.com/api/auth/change-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -124,4 +124,5 @@ export const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({ setP
       </div>
     </div>
   );
+
 };
