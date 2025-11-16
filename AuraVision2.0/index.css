@@ -1,0 +1,46 @@
+/* index.css (Global Styles) */
+
+body {
+  margin: 0;
+  /* Unga dark background color */
+  background-color: #0D0D0D; 
+  /* Unga default text color */
+  color: #FFFFFF; 
+  /* Unga font */
+  font-family: 'Inter', sans-serif;
+}
+
+/* Idhu unga app-a mobile madhiri center-la kondu varum */
+#root {
+  max-width: 640px; 
+  margin-left: auto;
+  margin-right: auto;
+  min-height: 100vh;
+  
+  /* Idhu unga design-la irundha oru chinna shadow */
+  box-shadow: 0 0 30px rgba(10, 132, 255, 0.1);
+
+  /* Ellame box-kulla irukkanum */
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* Button-ku default style-a remove pannalam */
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

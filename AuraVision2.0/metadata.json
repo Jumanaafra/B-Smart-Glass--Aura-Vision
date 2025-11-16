@@ -1,0 +1,9 @@
+{
+  "name": "Copy of Copy of Copy of Aura Vision",
+  "description": "An AI-powered application to assist visually impaired users by describing their surroundings, with a companion app for guides to provide real-time assistance.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

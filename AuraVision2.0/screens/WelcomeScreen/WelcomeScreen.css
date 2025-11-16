@@ -1,0 +1,102 @@
+/* screens/WelcomeScreen.css */
+
+.welcome-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+}
+
+.logo-container {
+  width: 6rem; /* w-24 */
+  height: 6rem; /* h-24 */
+  background-color: #1C1C1E; /* bg-iris-surface */
+  border-radius: 1.5rem; /* rounded-3xl */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFD60A; /* text-iris-accent-yellow */
+  margin-bottom: 1.5rem; /* mb-6 */
+}
+
+.logo-icon {
+  width: 3rem; /* w-12 */
+  height: 3rem; /* h-12 */
+}
+
+.welcome-title {
+  font-size: 1.875rem; /* text-3xl */
+  line-height: 2.25rem;
+  font-weight: 700; /* font-bold */
+}
+
+.welcome-subtitle {
+  color: #8E8E93; /* text-iris-text-secondary */
+  margin-top: 0.5rem; /* mt-2 */
+  margin-bottom: 3rem; /* mb-12 */
+}
+
+.button-group {
+  width: 100%;
+  max-width: 24rem; /* max-w-sm */
+}
+
+/* Idhu button-kulla irukura gap-ku */
+.button-group > button:not(:last-child) {
+    margin-bottom: 1rem; /* space-y-4 */
+}
+
+.action-button {
+  width: 100%;
+  border-radius: 1.5rem; /* rounded-3xl */
+  padding: 1.5rem; /* p-6 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.action-button:hover {
+    transform: scale(1.05); /* hover:scale-105 */
+}
+
+.user-button {
+  background-color: #0A84FF; /* bg-iris-primary-blue */
+  color: #FFFFFF; /* text-white */
+}
+
+.guide-button {
+   background-color: #1C1C1E; /* bg-iris-surface */
+   color: #FFFFFF; /* default text-primary */
+}
+
+.button-icon {
+  width: 2.5rem; /* w-10 */
+  height: 2.5rem; /* h-10 */
+  margin-bottom: 0.5rem; /* mb-2 */
+}
+
+.user-icon {
+    color: #FFFFFF; /* text-white */
+}
+
+.guide-icon {
+    color: #64D2FF; /* text-iris-primary-cyan */
+}
+
+.button-text {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 600; /* font-semibold */
+}
+
+.accessibility-button {
+  margin-top: 3rem; /* mt-12 */
+  color: #8E8E93; /* text-iris-text-secondary */
+  text-decoration: underline;
+}

@@ -1,0 +1,148 @@
+/* screens/GuideLoginScreen.css */
+
+.gl-container {
+  min-height: 100vh;
+  background-color: #0D0D0D; /* bg-iris-bg */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: #FFFFFF; /* text-iris-text-primary */
+}
+
+.gl-title {
+  font-size: 1.875rem; /* text-3xl */
+  font-weight: 700; /* font-bold */
+  margin-bottom: 0.5rem; /* mb-2 */
+}
+
+.gl-subtitle {
+  font-size: 1.25rem; /* text-xl */
+  color: #8E8E93; /* text-iris-text-secondary */
+  margin-bottom: 3rem; /* mb-12 */
+}
+
+.gl-form {
+  width: 100%;
+  max-width: 24rem; /* max-w-sm */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* space-y-6 */
+}
+
+.gl-input-group {
+  width: 100%;
+}
+
+.gl-label {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: #8E8E93; /* text-iris-text-secondary */
+}
+
+.gl-input-wrapper {
+  position: relative;
+  margin-top: 0.25rem; /* mt-1 */
+}
+
+.gl-input-icon {
+  position: absolute;
+  top: 50%;
+  left: 1rem; /* pl-4 */
+  transform: translateY(-50%);
+  color: #8E8E93; /* text-iris-text-secondary */
+  width: 1.25rem; /* w-5 */
+  height: 1.25rem; /* h-5 */
+}
+
+.gl-input-field {
+  width: 100%;
+  background-color: #1C1C1E; /* bg-iris-surface */
+  padding: 1rem; /* p-4 */
+  padding-left: 3rem; /* pl-12 */
+  border-radius: 0.75rem; /* rounded-xl */
+  border: none;
+  color: #FFFFFF;
+  font-size: 1rem;
+}
+
+.gl-input-field:focus {
+  outline: 2px solid #0A84FF; /* focus:ring-2 focus:ring-iris-primary-blue */
+}
+
+.gl-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 1rem; /* pr-4 */
+  transform: translateY(-50%);
+  color: #8E8E93; /* text-iris-text-secondary */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.gl-password-toggle-icon {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+}
+.gl-forgot-link {
+  font-size: 0.875rem; /* text-sm */
+  color: #8E8E93; /* text-iris-text-secondary */
+  float: right; /* float-right */
+  margin-top: 0.5rem; /* mt-2 */
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.gl-forgot-link:hover {
+  text-decoration: underline; /* hover:underline */
+}
+
+.gl-error-message {
+  font-size: 0.875rem; /* text-sm */
+  color: #FF453A; /* text-iris-accent-red */
+  text-align: center;
+  padding-top: 0.5rem; /* pt-2 */
+}
+
+.gl-login-button {
+  width: 100%;
+  background-color: #0A84FF; /* bg-iris-primary-blue */
+  color: #FFFFFF; /* text-white */
+  font-weight: 700; /* font-bold */
+  padding: 1rem; /* py-4 */
+  border-radius: 9999px; /* rounded-full */
+  margin-top: 0.5rem; /* Adjusting for form gap */
+  font-size: 1rem;
+  transition: transform 0.2s;
+}
+
+.gl-login-button:hover {
+  transform: scale(1.05); /* hover:scale-105 */
+}
+
+.gl-login-button:disabled {
+  opacity: 0.7; /* disabled:opacity-70 */
+  transform: scale(1); /* disabled:scale-100 */
+  cursor: not-allowed;
+}
+
+.gl-signup-text {
+  margin-top: 3rem; /* mt-12 */
+  color: #8E8E93; /* text-iris-text-secondary */
+  text-align: center;
+}
+
+.gl-signup-link {
+  font-weight: 600; /* font-semibold */
+  color: #0A84FF; /* text-iris-primary-blue */
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.gl-signup-link:hover {
+  text-decoration: underline; /* hover:underline */
+}
