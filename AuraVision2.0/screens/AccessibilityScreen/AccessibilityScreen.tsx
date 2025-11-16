@@ -22,7 +22,7 @@ export const AccessibilityScreen: React.FC<AccessibilityScreenProps> = ({ setPag
         if (userStr) {
             const currentUser = JSON.parse(userStr);
             try {
-                const response = await fetch(`http://localhost:5000/api/user/${currentUser._id}`);
+                const response = await fetch(`https://b-smart-glass-aura-vision.onrender.com/api/user/${currentUser._id}`);
                 if (response.ok) {
                     const userData = await response.json();
                     setUser(userData);
@@ -91,4 +91,5 @@ export const AccessibilityScreen: React.FC<AccessibilityScreenProps> = ({ setPag
       </main>
     </div>
   );
+
 };
