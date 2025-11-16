@@ -25,7 +25,7 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
   const [hasReceivedLoc, setHasReceivedLoc] = useState(false);
 
   useEffect(() => {
-    const socket = io("http://localhost:5000");
+    const socket = io("https://b-smart-glass-aura-vision.onrender.com");
 
     socket.on('connect', () => { setStatus("Connected 🟢"); });
     
@@ -89,4 +89,5 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
       </footer>
     </div>
   );
+
 };
