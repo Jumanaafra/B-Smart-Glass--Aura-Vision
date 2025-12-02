@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const OpenAI = require('openai');
-const http = require('http'); // Socket-க்கு தேவை
+const http = require('http'); 
 const { Server } = require("socket.io"); // Socket.io Import
 
 // Models
@@ -15,17 +15,16 @@ const Face = require('./models/Face');
 dotenv.config();
 const app = express();
 
-// Socket.io Setup (CORS மிக முக்கியம்)
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // எல்லா இடத்திலிருந்தும் கனெக்ஷனை அனுமதிக்கும்
+    origin: "*", 
     methods: ["GET", "POST"]
   }
 });
 
 app.use(cors());
-// போட்டோ அனுப்புவதால் லிமிட் அதிகம் தேவை (50mb)
+//we need high limit for sending live picture
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -43,10 +42,13 @@ const openai = new OpenAI({
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  // Blind User வீடியோ அனுப்பும்போது
+  // send video on Blind User 
   socket.on('send-video-frame', (data) => {
-    // அதை உடனே Guide-க்கு அனுப்பு (Broadcast)
+    // send video on guide
     socket.broadcast.emit('receive-video-frame', data);
+  });
+  socket.on('send-location', (data) => {
+    socket.broadcast.emit('receive-location', data);
   });
 
   socket.on('disconnect', () => {
@@ -177,4 +179,5 @@ app.post('/api/ai/chat', async (req, res) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Socket Server running on http://localhost:${PORT}`);
+
 });
