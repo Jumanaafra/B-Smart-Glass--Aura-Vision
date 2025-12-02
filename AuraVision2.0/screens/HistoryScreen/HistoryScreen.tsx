@@ -3,164 +3,170 @@
 import React, { useEffect, useState } from 'react';
 import { Page } from '../../types';
 import { Icon } from '../../components/Icon';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import './HistoryScreen.css';
+
+// Leaflet Icon Fix
+import L from 'leaflet';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
+L.Marker.prototype.options.icon = DefaultIcon;
 
 interface HistoryScreenProps {
   setPage: (page: Page) => void;
 }
 
-// DB Face type
-interface FaceData {
+interface HistoryItem {
   _id: string;
-  name: string;
-  imageUrl: string;
-  relationship: string; // 'Known' | 'Unknown' | other
-  createdAt: string;
+  type: 'VOICE' | 'LOCATION';
+  content: string;
+  timestamp: string;
+  location?: { lat: number; lng: number };
+  address?: string; // நாமளே கண்டுபிடிச்சு சேர்ப்போம்
 }
 
-// Static voice history (can be replaced by backend)
-const voiceHistory = [
-  { text: "What's the weather like?", time: '11:50 AM' },
-  { text: "Describe what's in front of me.", time: '11:41 AM' },
-  { text: "Is this crosswalk safe to cross?", time: '11:40 AM' },
-  { text: "Call my guide.", time: '11:15 AM' },
-];
-
-// Last known location (placeholder / can come from backend)
-const lastLocation = {
-  address: 'Central Park, New York, NY',
-  time: '11:52 AM',
-  lat: 40.785091,
-  lon: -73.968285,
-};
-
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
-  const [faces, setFaces] = useState<FaceData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [lastKnownAddress, setLastKnownAddress] = useState("Fetching location...");
+  const [lastLoc, setLastLoc] = useState<{lat: number, lng: number} | null>(null);
+
+  const fetchAddress = async (lat: number, lng: number) => {
+      try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const data = await res.json();
+          return data.display_name || "Unknown Location";
+      } catch (e) {
+          return "Address unavailable";
+      }
+  };
+
+  const loadHistory = async (pageNum: number) => {
+    const userStr = localStorage.getItem('currentUser');
+    if (!userStr) return;
+    const currentUser = JSON.parse(userStr);
+
+    setLoading(true);
+    try {
+        // 1. Get History List
+        const res = await fetch(`https://b-smart-glass-aura-vision.onrender.com/api/history/${currentUser._id}?page=${pageNum}&limit=15`);
+        const data = await res.json();
+
+        if (data.length < 15) setHasMore(false);
+
+        // 2. Get Addresses for each history item (in parallel)
+        const enrichedData = await Promise.all(data.map(async (item: any) => {
+            let addr = "";
+            if (item.location && item.location.lat) {
+                // ரொம்ப பழைய ரெக்கார்டா இருந்தா அட்ரஸ் தேட வேண்டாம், ஸ்லோ ஆகிடும்
+                 // இப்போதைக்கு சும்மா Lat/Lng காட்டுவோம், யூசர் கிளிக் பண்ணா மேப்ல பார்க்கலாம்
+                 addr = `${item.location.lat.toFixed(4)}, ${item.location.lng.toFixed(4)}`;
+            }
+            return { ...item, address: addr };
+        }));
+
+        setHistory(prev => [...prev, ...enrichedData]);
+
+        // 3. Get Last Known Location (Only on first load)
+        if (pageNum === 1) {
+            const locRes = await fetch(`https://b-smart-glass-aura-vision.onrender.com/api/user/${currentUser._id}`);
+            const userData = await locRes.json();
+            if (userData.lastLocation) {
+                setLastLoc(userData.lastLocation);
+                const addr = await fetchAddress(userData.lastLocation.lat, userData.lastLocation.lng);
+                setLastKnownAddress(addr);
+            }
+        }
+
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchFaces = async () => {
-      const userStr = localStorage.getItem('currentUser');
-      if (!userStr) {
-        setLoading(false);
-        return;
-      }
-      const currentUser = JSON.parse(userStr);
-      try {
-        const response = await fetch(`https://b-smart-glass-aura-vision.onrender.com/api/faces/${currentUser._id}`);
-        if (response.ok) {
-          const data = await response.json();
-          setFaces(data || []);
-        } else {
-          console.warn('Failed to fetch faces, response not ok');
-        }
-      } catch (error) {
-        console.error('Error fetching faces:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFaces();
+      loadHistory(1);
   }, []);
 
+  const handleLoadMore = () => {
+      const nextPage = pageNumber + 1;
+      setPageNumber(nextPage);
+      loadHistory(nextPage);
+  };
+
   const formatTime = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return dateString;
-    }
+    return new Date(dateString).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   return (
     <div className="hs-container">
       <header className="hs-header">
-        <button onClick={() => setPage(Page.GUIDE_MAIN)} className="hs-back-button" aria-label="Back">
+        <button onClick={() => setPage(Page.GUIDE_MAIN)} className="hs-back-button">
           <Icon name="arrowLeft" className="hs-back-button-icon" />
         </button>
-        <h1 className="hs-title">Alex's Activity History</h1>
+        <h1 className="hs-title">User History</h1>
       </header>
 
       <main className="hs-main">
-        {/* Detected People Section (from DB) */}
+        
+        {/* Last Location Card */}
+        <div className="hs-location-card">
+            <div className="hs-location-header">
+              <h2 className="hs-section-title" style={{marginBottom:0}}>LAST SEEN LOCATION</h2>
+            </div>
+            <p className="hs-location-address">{lastKnownAddress}</p>
+            
+            <div className="hs-location-map-container">
+                {lastLoc ? (
+                    <MapContainer center={[lastLoc.lat, lastLoc.lng]} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <Marker position={[lastLoc.lat, lastLoc.lng]} />
+                    </MapContainer>
+                ) : (
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'center', height:'100%'}}>Loading Map...</div>
+                )}
+            </div>
+        </div>
+
+        {/* History List */}
         <div>
-          <h2 className="hs-section-title">Detected People</h2>
+          <h2 className="hs-section-title">ACTIVITY LOG</h2>
           <div className="hs-section-content">
-            {loading ? (
-              <p style={{ textAlign: 'center', color: '#888' }}>Loading faces...</p>
-            ) : faces.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#888', padding: '1rem' }}>
-                No people added yet. Go to "Add Face" to add someone.
-              </p>
-            ) : (
-              faces.map((person) => (
-                <div key={person._id} className="hs-people-item">
-                  <img
-                    src={person.imageUrl || 'https://via.placeholder.com/150'}
-                    alt={person.name}
-                    className="hs-people-avatar"
-                    style={{ objectFit: 'cover' }}
-                  />
-                  <div className="hs-people-info">
-                    <div className="hs-people-info-header">
-                      <h3 className="hs-people-name">{person.name}</h3>
-                      <p className="hs-time">{formatTime(person.createdAt)}</p>
-                    </div>
-                    <div className="hs-people-info-footer">
-                      <p className="hs-location">Saved Face</p>
-                      <span
-                        className={`hs-category-tag ${
-                          person.relationship === 'Known' ? 'hs-category-known' : 'hs-category-unknown'
-                        }`}
-                      >
-                        {person.relationship}
-                      </span>
-                    </div>
+            {history.map((item) => (
+              <div key={item._id} className="hs-voice-item">
+                <div className="hs-voice-info">
+                  <div className="hs-icon-box">
+                      <Icon name={item.type === 'VOICE' ? 'microphone' : 'glasses'} className="hs-voice-icon" />
+                  </div>
+                  <div>
+                      <p className="hs-voice-text">"{item.content}"</p>
+                      {item.location && item.location.lat !== 0 && (
+                          <p className="hs-mini-loc">📍 {item.address || "Unknown Place"}</p>
+                      )}
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Voice Command History */}
-        <div>
-          <h2 className="hs-section-title">Voice Commands</h2>
-          <div className="hs-section-content">
-            {voiceHistory.map((command, index) => (
-              <div key={index} className="hs-voice-item">
-                <div className="hs-voice-info">
-                  <Icon name="microphone" className="hs-voice-icon" />
-                  <p className="hs-voice-text">"{command.text}"</p>
-                </div>
-                <p className="hs-time">{command.time}</p>
+                <p className="hs-time">{formatTime(item.timestamp)}</p>
               </div>
             ))}
+
+            {history.length === 0 && !loading && (
+                <p style={{textAlign:'center', color:'#666'}}>No history found.</p>
+            )}
           </div>
+
+          {hasMore && (
+              <button onClick={handleLoadMore} className="hs-load-more" disabled={loading}>
+                  {loading ? "Loading..." : "Load More"}
+              </button>
+          )}
         </div>
 
-        {/* Last Known Location */}
-        <div>
-          <h2 className="hs-section-title">Last Known Location</h2>
-          <div className="hs-location-card">
-            <div className="hs-location-header">
-              <p className="hs-location-address">{lastLocation.address}</p>
-              <p className="hs-time">{lastLocation.time}</p>
-            </div>
-            <div className="hs-location-map-container">
-              <iframe
-                title="Last Known Location Map"
-                className="hs-map-iframe"
-                src={`https://maps.google.com/maps?q=${lastLocation.lat},${lastLocation.lon}&z=15&output=embed&t=k`}
-                allowFullScreen
-                loading="lazy"
-              ></iframe>
-            </div>
-          </div>
-        </div>
       </main>
     </div>
   );
 };
-
