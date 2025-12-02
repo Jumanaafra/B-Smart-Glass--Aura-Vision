@@ -19,22 +19,25 @@ interface GuideMainProps {
   setPage: (page: Page) => void;
 }
 
-// Recenter Map Component
+// Map-ஐ புது லொகேஷனுக்கு நகர்த்தும் Component
 const RecenterMap = ({ lat, lng }: { lat: number; lng: number }) => {
   const map = useMap();
   useEffect(() => {
-    map.setView([lat, lng]); 
+    // flyTo பயன்படுத்தினால் Smooth-ஆக பறந்து செல்லும் (Nature map-க்கு இது கெத்தா இருக்கும்)
+    map.flyTo([lat, lng], 18, { animate: true, duration: 1.5 }); 
   }, [lat, lng, map]);
   return null;
 };
 
 export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
   const [liveImage, setLiveImage] = useState<string | null>(null);
+  // Default: Chennai (DB load aagura varaikum)
   const [liveLoc, setLiveLoc] = useState<{lat: number, lng: number}>({lat: 13.0827, lng: 80.2707});
-  const [status, setStatus] = useState("Connecting...");
-  const [hasReceivedLoc, setHasReceivedLoc] = useState(false);
+  
+  // Status States
+  const [socketStatus, setSocketStatus] = useState("Connecting...");
+  const [isLive, setIsLive] = useState(false); // Live data varudha illaya nu check panna
 
-  // User Device ID-ஐ எடுக்குறோம்
   const getUserDeviceId = () => {
     const userStr = localStorage.getItem('currentUser');
     return userStr ? JSON.parse(userStr).deviceId : null;
@@ -44,72 +47,91 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
     const deviceId = getUserDeviceId();
     const socket = io("https://b-smart-glass-aura-vision.onrender.com");
 
-    // 1. ஆப் ஓபன் ஆனதும், Database-ல் இருந்து கடைசி லொகேஷனை எடு
+    // 1. எடுத்த உடனே DB-ல இருந்து Last Location-ஐ கொண்டு வா (Offline Support)
     if (deviceId) {
         fetch(`https://b-smart-glass-aura-vision.onrender.com/api/location/${deviceId}`)
             .then(res => res.json())
             .then(data => {
-                if (data.lat && data.lng) {
+                // Live location இன்னும் வரலனா மட்டும் DB location-ஐ செட் பண்ணு
+                if (!isLive && data.lat && data.lng) {
                     setLiveLoc(data);
-                    setHasReceivedLoc(false); // Live ஆக வரும் வரை ஆரஞ்சு கலர்
                 }
             })
             .catch(err => console.error("Error fetching last location:", err));
     }
 
-    socket.on('connect', () => { setStatus("Connected 🟢"); });
+    socket.on('connect', () => { setSocketStatus("Connected 🟢"); });
     
     socket.on('receive-video-frame', (data) => {
         if (data.image) setLiveImage(data.image);
     });
 
-    // 2. லைவ் லொகேஷன் வந்தால் அப்டேட் செய்
+    // 2. Live Location வரும்போது இதை அப்டேட் செய்
     socket.on('receive-location', (data) => {
         if (data.lat && data.lng) {
             setLiveLoc(data);
-            setHasReceivedLoc(true); // Live Active (Green)
+            setIsLive(true); // Live Data வர ஆரம்பிச்சுடுச்சு!
         }
     });
 
     return () => { socket.disconnect(); };
-  }, []);
+  }, []); // Run once
 
   return (
     <div className="gm-container">
       <header className="gm-header">
         <button onClick={() => setPage(Page.GUIDE_LOGIN)}><Icon name="arrowLeft" className="gm-back-button-icon" /></button>
-        <div>
+        <div className="gm-header-info">
             <h1 className="gm-header-title">Monitoring Alex</h1>
-            <p style={{fontSize: '0.7rem', color: hasReceivedLoc ? '#4ade80' : '#fbbf24', margin: 0}}>
-                {hasReceivedLoc ? "Live GPS Active 🟢" : "Last Known Location 🟠"}
-            </p>
+            <div className="gm-status-badges">
+                <span className="gm-badge" style={{color: isLive ? '#4ade80' : '#fbbf24'}}>
+                    {isLive ? "📍 Live GPS" : "🕒 Last Known"}
+                </span>
+                <span className="gm-badge">{socketStatus}</span>
+            </div>
         </div>
-        <div className="gm-online-indicator-container"><div className="gm-online-dot"></div></div>
+        <div className="gm-online-indicator-container"><div className={`gm-online-dot ${isLive ? 'pulse' : ''}`}></div></div>
       </header>
 
       <main className="gm-main">
-        <div>
-          <h2 className="gm-section-title">Live Feed</h2>
-          <div className="gm-card" style={{ height: '250px' }}>
+        {/* Live Video Section */}
+        <div className="gm-video-section">
+          <div className="gm-card">
              {liveImage ? (
                 <img src={liveImage} className="gm-video" alt="Live" />
              ) : (
-                <div className="gm-card-error"><p>Waiting for video...</p></div>
+                <div className="gm-card-error">
+                    <Icon name="eyeSlash" className="gm-error-icon"/>
+                    <p>Waiting for video feed...</p>
+                </div>
              )}
+             <div className="gm-live-tag">LIVE VIEW</div>
           </div>
         </div>
         
-        <div>
-          <h2 className="gm-section-title">Real-time Location</h2>
-          <div className="gm-card" style={{ height: '300px', padding: 0, overflow: 'hidden' }}>
-             <MapContainer center={[liveLoc.lat, liveLoc.lng]} zoom={15} style={{ height: '100%', width: '100%' }}>
-                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* Map Section (Full Remaining Height) */}
+        <div className="gm-map-section">
+             <MapContainer center={[liveLoc.lat, liveLoc.lng]} zoom={18} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+                 {/* Nature / Satellite Map Design (Esri World Imagery) */}
+                 <TileLayer
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    attribution='&copy; Esri'
+                 />
+                 {/* Street Labels Overlay (Optional - Roads தெரிய) */}
+                 <TileLayer 
+                    url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lines/{z}/{x}/{y}{r}.png"
+                    opacity={0.4} 
+                 />
+                 
                  <Marker position={[liveLoc.lat, liveLoc.lng]}>
-                   <Popup>User is here</Popup>
+                   <Popup className="custom-popup">User is here</Popup>
                  </Marker>
                  <RecenterMap lat={liveLoc.lat} lng={liveLoc.lng} />
              </MapContainer>
-          </div>
+             <div className="gm-map-overlay-info">
+                <p>Lat: {liveLoc.lat.toFixed(5)}</p>
+                <p>Lng: {liveLoc.lng.toFixed(5)}</p>
+             </div>
         </div>
       </main>
       
