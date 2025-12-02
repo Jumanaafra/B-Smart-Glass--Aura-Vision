@@ -179,4 +179,42 @@
   width: 100%;
   height: 100%;
   border: 0;
+
+}
+.hs-icon-box {
+    background-color: #2C2C2E;
+    padding: 8px;
+    border-radius: 50%;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hs-voice-text {
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin: 0;
+    color: #FFF;
+}
+
+.hs-mini-loc {
+    font-size: 0.75rem;
+    color: #64D2FF; /* Cyan for location */
+    margin: 4px 0 0 0;
+}
+
+.hs-load-more {
+    width: 100%;
+    background-color: #2C2C2E;
+    color: #0A84FF;
+    padding: 12px;
+    border-radius: 12px;
+    margin-top: 20px;
+    margin-bottom: 40px;
+    font-weight: 600;
+}
+
+.hs-load-more:disabled {
+    opacity: 0.5;
 }
