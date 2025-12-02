@@ -1,12 +1,12 @@
 /* screens/GuideMain.css */
 
 .gm-container {
-  height: 100vh; /* Full screen height */
+  height: 100vh;
   background-color: #0D0D0D;
   display: flex;
   flex-direction: column;
   color: #FFFFFF;
-  overflow: hidden; /* Scroll bar-ai maraikka */
+  overflow: hidden; /* Prevent body scroll, only main scrolls */
 }
 
 .gm-header {
@@ -17,6 +17,7 @@
   background-color: #1C1C1E;
   border-bottom: 1px solid #2C2C2E;
   flex-shrink: 0;
+  z-index: 10;
 }
 
 .gm-header-info {
@@ -73,25 +74,35 @@
   100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 
-/* --- Main Content Layout --- */
+/* --- Main Content Layout (Scrollable) --- */
 .gm-main {
   flex-grow: 1;
+  overflow-y: auto; /* Enable vertical scrolling */
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  padding: 0;
-  overflow: hidden;
+  gap: 1.5rem;
 }
 
-/* Video Section - Fixed Height */
-.gm-video-section {
-  padding: 0.75rem;
-  flex-shrink: 0;
+.gm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
+.gm-section-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #8E8E93;
+  text-transform: uppercase;
+  margin-left: 0.25rem;
+}
+
+/* --- Universal Card Style --- */
 .gm-card {
   position: relative;
   width: 100%;
-  height: 14rem; /* Mobile-ku etha height */
+  height: 16rem; /* Fixed height for both Video and Map */
   background-color: #1C1C1E;
   border-radius: 1rem;
   overflow: hidden;
@@ -99,8 +110,10 @@
   align-items: center;
   justify-content: center;
   border: 1px solid #2C2C2E;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* Video Specifics */
 .gm-video {
   width: 100%;
   height: 100%;
@@ -125,39 +138,36 @@
   position: absolute;
   top: 0.75rem;
   left: 0.75rem;
-  background-color: rgba(255, 59, 48, 0.8); /* Red */
+  background-color: rgba(255, 59, 48, 0.9); /* Red */
   color: white;
   font-size: 0.65rem;
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
+  z-index: 10;
 }
 
-/* Map Section - Fills remaining space */
-.gm-map-section {
-  flex-grow: 1; /* Meethi irukka idam fulla map dhaan */
-  position: relative;
-  min-height: 0; /* Flexbox fix */
-  border-top: 1px solid #2C2C2E;
+/* Map Specifics */
+.map-card {
+  z-index: 0; /* Ensure map stays behind header/footer */
 }
 
-.gm-map-overlay-info {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  padding: 5px 10px;
-  border-radius: 6px;
-  z-index: 999;
-  color: #fff;
-  font-size: 0.7rem;
-  font-family: monospace;
-  pointer-events: none;
+.gm-address-box {
+  background-color: #1C1C1E;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  color: #8E8E93;
+  border: 1px solid #2C2C2E;
 }
 
-.gm-map-overlay-info p {
+.gm-address-box p {
   margin: 0;
+  margin-bottom: 0.25rem;
+}
+
+.gm-address-box strong {
+  color: #FFFFFF;
 }
 
 /* --- Footer --- */
@@ -168,6 +178,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   border-top: 1px solid #2C2C2E;
+  z-index: 10;
 }
 
 .gm-footer-button {
