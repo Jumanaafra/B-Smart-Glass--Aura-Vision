@@ -15,6 +15,7 @@ const Face = require('./models/Face');
 dotenv.config();
 const app = express();
 
+// Socket.io Setup 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -24,7 +25,7 @@ const io = new Server(server, {
 });
 
 app.use(cors());
-//we need high limit for sending live picture
+
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -38,17 +39,32 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, 
 });
 
-// --- SOCKET.IO LOGIC (Real-time Speed) ---
+// --- SOCKET.IO LOGIC (UPDATED) ---
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  // send video on Blind User 
+  // 1. Blind User 
   socket.on('send-video-frame', (data) => {
-    // send video on guide
+   
     socket.broadcast.emit('receive-video-frame', data);
   });
-  socket.on('send-location', (data) => {
+
+  // 2. Blind User 
+  socket.on('send-location', async (data) => {
+    // A.(Live Tracking)
     socket.broadcast.emit('receive-location', data);
+
+    // B. Database-ல(Offline-ல் )
+    if (data.deviceId) {
+      try {்
+        await User.findOneAndUpdate(
+          { deviceId: data.deviceId, userType: 'VISUALLY_IMPAIRED' },
+          { $set: { lastLocation: { lat: data.lat, lng: data.lng } } }
+        );
+      } catch (err) {
+        console.error("Error saving location:", err);
+      }
+    }
   });
 
   socket.on('disconnect', () => {
@@ -57,6 +73,23 @@ io.on('connection', (socket) => {
 });
 
 // --- ROUTES ---
+
+// NEW API:
+app.get('/api/location/:deviceId', async (req, res) => {
+  try {
+    
+    const user = await User.findOne({ deviceId: req.params.deviceId, userType: 'VISUALLY_IMPAIRED' });
+    
+    if (user && user.lastLocation && user.lastLocation.lat) {
+      res.json(user.lastLocation);
+    } else {
+      // User Default Chennai
+      res.json({ lat: 13.0827, lng: 80.2707 }); 
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // 1. AUTH: Register
 app.post('/api/auth/register', async (req, res) => {
@@ -120,13 +153,13 @@ app.get('/api/faces/:userId', async (req, res) => {
 // 7. AI: Describe Image (Tanglish/English Support)
 app.post('/api/ai/describe', async (req, res) => {
   try {
-    const { imageBase64, prompt, language } = req.body; // language-ஐயும் வாங்குகிறோம்
+    const { imageBase64, prompt, language } = req.body; // language
 
     const imageContent = imageBase64.startsWith('data:') 
         ? imageBase64 
         : `data:image/jpeg;base64,${imageBase64}`;
 
-    // AI-க்கான இன்ஸ்ட்ரக்ஷன் (System Prompt)
+    // AI- (System Prompt)
     let systemInstruction = "You are Aura, a helpful vision assistant for a visually impaired person. Keep your answers short, kind, and direct.";
     
     if (language === 'TG') {
@@ -175,9 +208,8 @@ app.post('/api/ai/chat', async (req, res) => {
   }
 });
 
-// Start Server (முக்கியம்: app.listen-க்கு பதில் server.listen)
+// Start Server (: app.listen  server.listen)
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Socket Server running on http://localhost:${PORT}`);
-
 });
