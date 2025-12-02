@@ -7,18 +7,21 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   userType: { type: String, enum: ['VISUALLY_IMPAIRED', 'GUIDE'], required: true, default: 'VISUALLY_IMPAIRED' },
-  deviceId: { type: String, default: '' },
+  deviceId: { type: String, default: '' }, 
+
+  lastLocation: {
+    lat: { type: Number, default: 13.0827 }, // Default Chennai
+    lng: { type: Number, default: 80.2707 }
+  },
 
   // Settings & accessibility options
   settings: {
     darkMode: { type: Boolean, default: true },
     hapticFeedback: { type: Boolean, default: true },
-    narrationSpeed: { type: Number, default: 50 }, // 0-100 scale
+    narrationSpeed: { type: Number, default: 50 },
     lowBatteryAlerts: { type: Boolean, default: true },
     connectionStatus: { type: Boolean, default: false },
     guideMessages: { type: Boolean, default: true },
-
-    // Additional accessibility options
     voiceNarration: { type: Boolean, default: true },
     highContrast: { type: Boolean, default: false },
   },
