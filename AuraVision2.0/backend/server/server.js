@@ -56,7 +56,7 @@ io.on('connection', (socket) => {
 
     // B. Database-ல(Offline-ல் )
     if (data.deviceId) {
-      try {்
+      try {
         await User.findOneAndUpdate(
           { deviceId: data.deviceId, userType: 'VISUALLY_IMPAIRED' },
           { $set: { lastLocation: { lat: data.lat, lng: data.lng } } }
@@ -213,3 +213,4 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Socket Server running on http://localhost:${PORT}`);
 });
+
