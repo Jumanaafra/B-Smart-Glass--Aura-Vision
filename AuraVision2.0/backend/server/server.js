@@ -11,7 +11,7 @@ const { Server } = require("socket.io");
 // Models
 const User = require('./models/User');
 const Face = require('./models/Face');
-const History = require('./models/History'); // புது மாடல் சேர்ப்பு
+const History = require('./models/History'); 
 
 dotenv.config();
 const app = express();
@@ -48,12 +48,8 @@ io.on('connection', (socket) => {
         const user = await User.findOneAndUpdate(
           { deviceId: data.deviceId, userType: 'VISUALLY_IMPAIRED' },
           { $set: { lastLocation: { lat: data.lat, lng: data.lng } } },
-          { new: true } // Return updated doc
+          { new: true } 
         );
-
-        // 2. (Optional) Save Location History occasionally?
-        // ஒவ்வொரு முறையும் சேவ் பண்ணா DB நிறையும். 
-        // முக்கியமா 'User Query' கேட்கும் போது லொகேஷனை சேவ் பண்ணலாம் (கீழே பார்க்கவும்).
       } catch (err) {
         console.error("Error saving location:", err);
       }
@@ -73,7 +69,7 @@ app.get('/api/history/:userId', async (req, res) => {
         const skip = (page - 1) * limit;
 
         const history = await History.find({ userId: req.params.userId })
-            .sort({ timestamp: -1 }) // புதுசு மேல வரணும்
+            .sort({ timestamp: -1 }) 
             .skip(skip)
             .limit(limit);
         
@@ -120,7 +116,7 @@ app.get('/api/location/:deviceId', async (req, res) => {
 });
 
 // Auth Routes
-app.post('/api/auth/register', async (req, res) => { /* Same as before */ 
+app.post('/api/auth/register', async (req, res) => { 
     try {
         const { fullName, email, password, userType, deviceId } = req.body;
         const existingUser = await User.findOne({ email });
@@ -131,7 +127,7 @@ app.post('/api/auth/register', async (req, res) => { /* Same as before */
     } catch (error) { res.status(500).json({ message: "Server Error", error: error.message }); }
 });
 
-app.post('/api/auth/login', async (req, res) => { /* Same as before */
+app.post('/api/auth/login', async (req, res) => { 
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ email });
@@ -141,7 +137,7 @@ app.post('/api/auth/login', async (req, res) => { /* Same as before */
     } catch (error) { res.status(500).json({ message: "Server Error", error: error.message }); }
 });
 
-app.put('/api/user/:id/settings', async (req, res) => { /* Same as before */
+app.put('/api/user/:id/settings', async (req, res) => { 
     try {
         const { settings } = req.body; 
         const user = await User.findByIdAndUpdate(req.params.id, { $set: { settings: settings } }, { new: true });
@@ -149,13 +145,11 @@ app.put('/api/user/:id/settings', async (req, res) => { /* Same as before */
     } catch (error) { res.status(500).json({ message: "Error updating settings" }); }
 });
 
-// AI Describe (Updated to Save History)
-// server.js - api/ai/describe route குள்ள
-// server.js - api/ai/describe route kullara idha podu
-
+// AI Describe (Corrected Route)
 app.post('/api/ai/describe', async (req, res) => {
   try {
-    const { imageBase64, prompt } = req.body;
+    // 🔥 FIX: Added userId, lat, lng to destructuring
+    const { imageBase64, prompt, userId, lat, lng } = req.body;
 
     const imageContent = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
 
@@ -193,10 +187,11 @@ app.post('/api/ai/describe', async (req, res) => {
             { type: "image_url", image_url: { url: imageContent } } 
         ] },
       ],
-      max_tokens: 150, // Short response
+      max_tokens: 150, 
     });
 
     const description = response.choices[0].message.content;
+
     // --- SAVE HISTORY ---
     if (userId) {
         const newHistory = new History({
@@ -210,7 +205,7 @@ app.post('/api/ai/describe', async (req, res) => {
 
     res.json({ description });
   } catch (error) { 
-      console.error(error);
+      console.error("AI Error:", error);
       res.status(500).json({ message: "AI Error", error: error.message }); 
   }
 });
@@ -231,4 +226,3 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Socket Server running on http://localhost:${PORT}`);
 });
-
