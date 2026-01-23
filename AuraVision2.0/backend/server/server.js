@@ -150,26 +150,53 @@ app.put('/api/user/:id/settings', async (req, res) => { /* Same as before */
 });
 
 // AI Describe (Updated to Save History)
+// server.js - api/ai/describe route குள்ள
+// server.js - api/ai/describe route kullara idha podu
+
 app.post('/api/ai/describe', async (req, res) => {
   try {
-    // userId-யையும் வாங்குறோம்
-    const { imageBase64, prompt, language, userId, lat, lng } = req.body; 
+    const { imageBase64, prompt } = req.body;
 
     const imageContent = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
-    let systemInstruction = "You are Aura, a helpful vision assistant. Keep answers short.";
-    if (language === 'TG') systemInstruction += " Reply in 'Tanglish'."; else systemInstruction += " Reply in English.";
+
+    // 🔥 BLIND ASSISTANT SYSTEM PROMPT 🔥
+    const systemInstruction = `
+      You are Aura, an intelligent visual assistant guiding a blind person in a public environment. 
+      Your mission is to act as their eyes, ensuring safety and independence.
+
+      STRICT RULES:
+      1. **LANGUAGE MIRRORING (Crucial):** - Listen to the user's prompt language carefully.
+         - If user speaks **English**, reply in **English**.
+         - If user speaks **Tamil**, reply in **Tamil** (Tamil Script).
+         - If user speaks **Tanglish** (Tamil words in English text), reply in **Tanglish**.
+         - If user speaks **Hindi**, reply in **Hindi**.
+      
+      2. **SAFETY FIRST:** - Immediately warn about hazards: Traffic, Potholes, Stairs, Low hanging branches, Poles, or Crowds.
+         - Use "Stop" or "Caution" if immediate danger is detected.
+
+      3. **NAVIGATION STYLE:** - Be specific about location using clock positions (e.g., "Table at 12 o'clock", "Car approaching from 3 o'clock").
+         - Estimate distance (e.g., "2 steps ahead").
+
+      4. **BE CONCISE:** - Keep response under 2 sentences. Audio latency matters. No robotic greetings.
+      
+      Example Scenarios:
+      - User (Tanglish): "Munnadi enna irukku?" -> You (Tanglish): "Munnadi oru bike park panni irukku, 2 adi thalli nadanga."
+      - User (English): "Is it safe to cross?" -> You (English): "No, there is a moving car approaching from the left. Wait."
+    `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", 
+      model: "gpt-4o-mini", // Fast & Cost-effective
       messages: [
         { role: "system", content: systemInstruction },
-        { role: "user", content: [ { type: "text", text: prompt || "Describe this." }, { type: "image_url", image_url: { url: imageContent } } ] },
+        { role: "user", content: [ 
+            { type: "text", text: prompt || "Describe the scene for navigation." }, 
+            { type: "image_url", image_url: { url: imageContent } } 
+        ] },
       ],
-      max_tokens: 150,
+      max_tokens: 150, // Short response
     });
 
     const description = response.choices[0].message.content;
-
     // --- SAVE HISTORY ---
     if (userId) {
         const newHistory = new History({
