@@ -160,7 +160,7 @@ app.post('/api/ai/describe', async (req, res) => {
     if (language === 'TG') systemInstruction += " Reply in 'Tanglish'."; else systemInstruction += " Reply in English.";
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", 
+      model: "gpt-4o-mini", 
       messages: [
         { role: "system", content: systemInstruction },
         { role: "user", content: [ { type: "text", text: prompt || "Describe this." }, { type: "image_url", image_url: { url: imageContent } } ] },
@@ -204,3 +204,4 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Socket Server running on http://localhost:${PORT}`);
 });
+
