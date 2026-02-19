@@ -145,15 +145,12 @@ app.put('/api/user/:id/settings', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Error updating settings" }); }
 });
 
-// AI Describe (Corrected Route)
+// AI Describe (Corrected Route with Mode handling)
 app.post('/api/ai/describe', async (req, res) => {
   try {
-    // 🔥 FIX: Added userId, lat, lng to destructuring
-    const { imageBase64, prompt, userId, lat, lng } = req.body;
+    // 🔥 FIX: Added 'mode' to extract from request
+    const { imageBase64, prompt, userId, lat, lng, mode } = req.body;
 
-    const imageContent = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
-
-    // 🔥 BLIND ASSISTANT SYSTEM PROMPT 🔥
     const systemInstruction = `
       You are Aura, an intelligent visual assistant guiding a blind person in a public environment. 
       Your mission is to act as their eyes, ensuring safety and independence.
@@ -165,27 +162,35 @@ app.post('/api/ai/describe', async (req, res) => {
          - If user speaks **Tanglish** (Tamil words in English text), reply in **Tanglish**.
          - If user speaks **Hindi**, reply in **Hindi**.
       
-      2. **SAFETY FIRST:** - Immediately warn about hazards: Traffic, Potholes, Stairs, Low hanging branches, Poles, or Crowds.
+      2. **SAFETY FIRST:** - Immediately warn about hazards.
          - Use "Stop" or "Caution" if immediate danger is detected.
 
-      3. **NAVIGATION STYLE:** - Be specific about location using clock positions (e.g., "Table at 12 o'clock", "Car approaching from 3 o'clock").
-         - Estimate distance (e.g., "2 steps ahead").
+      3. **NAVIGATION STYLE:** - Be specific about location using clock positions.
+         - Estimate distance.
 
       4. **BE CONCISE:** - Keep response under 2 sentences. Audio latency matters. No robotic greetings.
-      
-      Example Scenarios:
-      - User (Tanglish): "Munnadi enna irukku?" -> You (Tanglish): "Munnadi oru bike park panni irukku, 2 adi thalli nadanga."
-      - User (English): "Is it safe to cross?" -> You (English): "No, there is a moving car approaching from the left. Wait."
     `;
+
+    // 🔥 FIX: Dynamic Content based on Mode for Faster Response 🔥
+    let userMessageContent;
+    
+    if (mode === 'chat' || !imageBase64) {
+        // Chat Mode: Send ONLY Text. This makes the API response lightning fast!
+        userMessageContent = prompt || "Hello Aura";
+    } else {
+        // Vision / Face Mode: Send Image + Text
+        const imageContent = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+        userMessageContent = [ 
+            { type: "text", text: prompt || "Describe the scene for navigation." }, 
+            { type: "image_url", image_url: { url: imageContent } } 
+        ];
+    }
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini", // Fast & Cost-effective
       messages: [
         { role: "system", content: systemInstruction },
-        { role: "user", content: [ 
-            { type: "text", text: prompt || "Describe the scene for navigation." }, 
-            { type: "image_url", image_url: { url: imageContent } } 
-        ] },
+        { role: "user", content: userMessageContent },
       ],
       max_tokens: 150, 
     });
@@ -197,8 +202,8 @@ app.post('/api/ai/describe', async (req, res) => {
         const newHistory = new History({
             userId: userId,
             type: 'VOICE',
-            content: prompt || "Visual Query", // User கேட்ட கேள்வி
-            location: { lat: lat || 0, lng: lng || 0 } // கேள்வி கேட்ட இடம்
+            content: prompt || "Visual Query", 
+            location: { lat: lat || 0, lng: lng || 0 } 
         });
         await newHistory.save();
     }
@@ -210,7 +215,7 @@ app.post('/api/ai/describe', async (req, res) => {
   }
 });
 
-// Guide Chat (Updated)
+// Guide Chat
 app.post('/api/ai/chat', async (req, res) => {
     try {
       const { message } = req.body;
