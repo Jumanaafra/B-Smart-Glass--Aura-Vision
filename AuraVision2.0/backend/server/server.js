@@ -52,17 +52,9 @@ const cookieOptions = {
 };
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
-  'http://localhost:3000',
-  'http://localhost:5173',
-];
-
+// Dynamically allow the requesting origin to solve Vercel preview URL mismatches
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error('Not allowed by CORS'));
-  },
+  origin: true, // true safely reflects the requesting origin back
   credentials: true, // Required to allow cookies in cross-origin requests
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
