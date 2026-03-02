@@ -34,7 +34,7 @@ dotenv.config();
 const app = express();
 app.set('trust proxy', 1); // <--- CRITICAL for Render! Allows secure cookies behind reverse proxy
 
-const IS_PROD = process.env.NODE_ENV === 'production';
+const IS_PROD = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '7d';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
@@ -96,33 +96,22 @@ async function loadFaceModels() {
 }
 loadFaceModels();
 
-// ── HELPER: Set JWT Cookie ────────────────────────────────────────────────────
-const setTokenCookie = (res, user) => {
-  const token = jwt.sign(
+// ── HELPER: Generate JWT Token ────────────────────────────────────────────────────
+const generateToken = (user) => {
+  return jwt.sign(
     { id: user._id.toString(), email: user.email, userType: user.userType },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
-  // Set as HttpOnly cookie — JS cannot access this
-  res.cookie('token', token, cookieOptions);
-  return token;
 };
 
 // ── AUTH MIDDLEWARE ───────────────────────────────────────────────────────────
 /**
- * Reads JWT from:
- *  1. httpOnly cookie `token`  ← preferred (browser clients)
- *  2. Authorization: Bearer <token> header  ← fallback (Postman, mobile, curl)
+ * Reads JWT from Authorization: Bearer <token> header
  */
 const authenticateToken = (req, res, next) => {
-  // 1. Try cookie first
-  let token = req.cookies?.token;
-
-  // 2. Fall back to Authorization header
-  if (!token) {
-    const authHeader = req.headers['authorization'];
-    token = authHeader && authHeader.split(' ')[1];
-  }
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ message: 'Access denied. Please log in.' });
@@ -132,8 +121,6 @@ const authenticateToken = (req, res, next) => {
     req.user = jwt.verify(token, JWT_SECRET); // { id, email, userType }
     next();
   } catch (err) {
-    // Clear a bad cookie automatically
-    res.clearCookie('token', { path: '/' });
     return res.status(403).json({ message: 'Session expired. Please log in again.' });
   }
 };
@@ -196,13 +183,13 @@ app.post('/api/auth/register', async (req, res) => {
     });
     await newUser.save();
 
-    // ✅ Set JWT as HttpOnly cookie
-    setTokenCookie(res, newUser);
+    // ✅ Generate JWT to send in response body
+    const token = generateToken(newUser);
 
     const userResponse = newUser.toObject();
     delete userResponse.password;
 
-    res.status(201).json({ message: 'User registered successfully', user: userResponse });
+    res.status(201).json({ message: 'User registered successfully', token, user: userResponse });
   } catch (error) {
     console.error('Register Error:', error);
     res.status(500).json({ message: 'Server Error', error: error.message });
@@ -241,13 +228,13 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password.' });
     }
 
-    // ✅ Set JWT as HttpOnly cookie — token NOT sent in response body
-    setTokenCookie(res, user);
+    // ✅ Generate JWT to send in response body
+    const token = generateToken(user);
 
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    res.json({ message: 'Login successful', user: userResponse });
+    res.json({ message: 'Login successful', token, user: userResponse });
   } catch (error) {
     console.error('Login Error:', error);
     res.status(500).json({ message: 'Server Error', error: error.message });
@@ -256,17 +243,15 @@ app.post('/api/auth/login', async (req, res) => {
 
 // ── 3. LOGOUT ─────────────────────────────────────────────────────────────────
 app.post('/api/auth/logout', (_req, res) => {
-  res.clearCookie('token', { path: '/' });
   res.json({ message: 'Logged out successfully.' });
 });
 
 // ── 4. GET CURRENT USER (session restore) ─────────────────────────────────────
-// Called on app load to check if user is already logged in via cookie
+// Called on app load to check if user is already logged in via token
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) {
-      res.clearCookie('token', { path: '/' });
       return res.status(404).json({ message: 'User not found.' });
     }
     res.json({ user });
