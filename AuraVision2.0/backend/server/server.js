@@ -8,10 +8,6 @@ const OpenAI = require('openai');
 const http = require('http'); 
 const { Server } = require("socket.io"); 
 
-// 🔥 Face API Imports 🔥
-const { Canvas, Image, ImageData } = require('canvas');
-
-
 // Models
 const User = require('./models/User');
 const Face = require('./models/Face');
@@ -32,23 +28,9 @@ mongoose.connect(process.env.MONGO_URI)
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// 🔥 Patch Face-API and Load Models 🔥
-faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
-async function loadFaceModels() {
-  try {
-    await faceapi.nets.ssdMobilenetv1.loadFromDisk('./weights');
-    await faceapi.nets.faceLandmark68Net.loadFromDisk('./weights');
-    await faceapi.nets.faceRecognitionNet.loadFromDisk('./weights');
-    console.log("✅ Face-API Models Loaded!");
-  } catch (err) {
-    console.error("⚠️ Face-API Weights not found. Create a 'weights' folder and add model files.");
-  }
-}
-loadFaceModels();
-
 // --- SOCKET.IO LOGIC ---
 io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+  console.log('📱 A user connected:', socket.id);
   socket.on('send-video-frame', (data) => socket.broadcast.emit('receive-video-frame', data));
   socket.on('send-location', async (data) => {
     socket.broadcast.emit('receive-location', data);
@@ -62,7 +44,7 @@ io.on('connection', (socket) => {
       } catch (err) {}
     }
   });
-  socket.on('disconnect', () => console.log('User disconnected'));
+  socket.on('disconnect', () => console.log('❌ User disconnected'));
 });
 
 // --- ROUTES ---
@@ -77,28 +59,19 @@ app.get('/api/history/:userId', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// 🔥 UPDATE: Add Face with Descriptor Logic 🔥
+// 🔥 UPDATE: Add Face (Canvas & Face-API Removed) 🔥
 app.post('/api/faces/add', async (req, res) => { 
     try {
         const { userId, name, imageUrl, base64Image } = req.body;
         
-        // Convert Base64 from app to Image object
-        const img = new Image();
-        img.src = base64Image; // Mobile app-ல் இருந்து போட்டோவை base64 ஆக அனுப்ப வேண்டும்
-        
-        // Detect face and extract descriptor
-        const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-        
-        if (!detection) {
-            return res.status(400).json({ message: "No face detected in the image." });
-        }
-
-        const descriptor = Array.from(detection.descriptor); // Convert Float32Array to normal Array
-
-        const newFace = new Face({ userId, name, imageUrl, descriptor });
+        // Face-API இல்லாமல் நேரடியாக டேட்டாபேஸில் சேமிக்கிறோம்
+        const newFace = new Face({ userId, name, imageUrl, base64Image });
         await newFace.save();
+        
         res.status(201).json({ message: "Person added successfully", face: newFace });
-    } catch(e) { res.status(500).json({error: e.message}) }
+    } catch(e) { 
+        res.status(500).json({error: e.message}); 
+    }
 });
 
 // Get Faces
@@ -109,14 +82,14 @@ app.get('/api/faces/:userId', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}) }
 });
 
-// Profile & Location
+// Profile & Location Placeholders
 app.get('/api/user/:id', async (req, res) => { /* Same as before */ });
 app.get('/api/location/:deviceId', async (req, res) => { /* Same as before */ });
 app.post('/api/auth/register', async (req, res) => { /* Same as before */ });
 app.post('/api/auth/login', async (req, res) => { /* Same as before */ });
 app.put('/api/user/:id/settings', async (req, res) => { /* Same as before */ });
 
-// 🔥 UPDATE: AI Describe with Face Recognition 🔥
+// 🔥 UPDATE: AI Describe (Face-API logic removed, purely using OpenAI Vision) 🔥
 app.post('/api/ai/describe', async (req, res) => {
   try {
     const { imageBase64, prompt, userId, lat, lng, mode } = req.body;
@@ -137,26 +110,9 @@ app.post('/api/ai/describe', async (req, res) => {
     } else {
         const imageContent = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
         
-        // FACE DETECTION LOGIC
-        if (mode === 'face' && userId) {
-            try {
-                const img = new Image();
-                img.src = imageContent;
-                const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-
-                if (detection) {
-                    const savedFaces = await Face.find({ userId: userId });
-                    if (savedFaces.length > 0) {
-                        const labeledDescriptors = savedFaces.map(f => new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(f.descriptor)]));
-                        const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
-                        const match = faceMatcher.findBestMatch(detection.descriptor);
-                        
-                        if (match.label !== 'unknown') {
-                            finalPrompt = `The person in the image is your known contact named '${match.label}'. Tell the user that ${match.label} is in front of them and describe their expression. Reply in the user's language. User query: ${prompt}`;
-                        }
-                    }
-                }
-            } catch (err) { console.error("Face API Match Error:", err); }
+        // Face Mode-க்கு OpenAI-யையே நேரடியாகப் பயன்படுத்துகிறோம்
+        if (mode === 'face') {
+            finalPrompt = `Describe the person's physical appearance, expression, and approximate age. Reply in the user's language. User query: ${prompt || "Who is this?"}`;
         }
 
         userMessageContent = [ 
@@ -183,9 +139,8 @@ app.post('/api/ai/describe', async (req, res) => {
   }
 });
 
-// Guide Chat
+// Guide Chat Placeholder
 app.post('/api/ai/chat', async (req, res) => { /* Same as before */ });
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => { console.log(`🚀 Socket Server running on http://localhost:${PORT}`); });
-
