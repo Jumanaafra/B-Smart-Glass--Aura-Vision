@@ -1,0 +1,270 @@
+/* screens/SettingsScreen.css */
+
+.ss-container {
+  min-height: 100vh;
+  background-color: #0D0D0D; /* bg-iris-bg */
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.5rem; /* p-4 md:p-6 */
+  color: #FFFFFF; /* text-iris-text-primary */
+}
+
+.ss-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0; /* py-4 */
+}
+
+.ss-back-button {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ss-back-button-icon {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+}
+
+.ss-title {
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: 700; /* font-bold */
+}
+
+/* --- Main Content --- */
+.ss-main {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-top: 1rem; /* mt-4 */
+  display: flex;
+  flex-direction: column;
+  gap: 2rem; /* space-y-8 */
+}
+
+/* --- Profile Section --- */
+.ss-profile-section {
+  display: flex;
+  align-items: center;
+  background-color: #1C1C1E; /* bg-iris-surface */
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1rem; /* p-4 */
+}
+
+.ss-profile-avatar {
+  width: 4rem; /* w-16 */
+  height: 4rem; /* h-16 */
+  color: #8E8E93; /* text-iris-text-secondary */
+  margin-right: 1rem; /* mr-4 */
+  flex-shrink: 0;
+}
+
+.ss-profile-info h2 {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 600; /* font-semibold */
+  margin: 0;
+}
+
+.ss-profile-info p {
+  color: #8E8E93; /* text-iris-text-secondary */
+  margin: 0;
+}
+
+/* === IDHU PUDHUSU (START) === */
+.ss-profile-info-edit {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 0.25rem;
+}
+
+.ss-profile-input-name {
+  background-color: #2C2C2E;
+  border: 1px solid #48484A;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  color: #FFFFFF;
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 600; /* font-semibold */
+}
+
+.ss-profile-input-email {
+  background-color: #2C2C2E;
+  border: 1px solid #48484A;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  color: #8E8E93; /* text-iris-text-secondary */
+}
+/* === IDHU PUDHUSU (END) === */
+
+
+.ss-profile-edit-button {
+  margin-left: auto; /* ml-auto */
+  color: #0A84FF; /* text-iris-primary-blue */
+  font-weight: 600; /* font-semibold */
+  flex-shrink: 0;
+  padding-left: 0.5rem;
+}
+
+/* --- Section Heading --- */
+.ss-section-heading {
+  color: #8E8E93; /* text-iris-text-secondary */
+  font-weight: 600; /* font-semibold */
+  margin-bottom: 0.5rem; /* mb-2 */
+  padding: 0 0.5rem; /* px-2 */
+  font-size: 0.875rem; /* text-sm */
+  text-transform: uppercase;
+}
+
+/* --- Settings Item (Base) --- */
+.ss-setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #1C1C1E; /* bg-iris-surface */
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1rem; /* p-4 */
+}
+
+/* === IDHU PUDHUSU === */
+/* SettingsItem oru button-a irundha */
+.ss-setting-button {
+  width: 100%;
+  text-align: left;
+}
+.ss-setting-button:hover {
+  background-color: #2C2C2E;
+}
+/* ================== */
+
+
+.ss-setting-item-label {
+  display: flex;
+  align-items: center;
+}
+
+.ss-setting-item-icon-wrapper {
+  width: 2rem; /* w-8 */
+  height: 2rem; /* h-8 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1rem; /* mr-4 */
+  color: #8E8E93; /* text-iris-text-secondary */
+}
+
+.ss-setting-item-icon {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+}
+
+.ss-setting-item-text {
+  font-weight: 500; /* font-medium */
+}
+
+.ss-setting-item-action {
+  display: flex;
+  align-items: center;
+}
+
+.ss-setting-item-nav-icon-wrapper {
+  color: #48484A; /* text-iris-text-tertiary */
+  margin-left: 1rem; /* ml-4 */
+}
+
+.ss-setting-item-nav-icon {
+  width: 1.25rem; /* w-5 */
+  height: 1.25rem; /* h-5 */
+}
+
+/* --- Device Management --- */
+.ss-unpair-button {
+  color: #FF453A; /* text-iris-accent-red */
+  font-weight: 600; /* font-semibold */
+}
+
+/* === IDHU PUDHUSU === */
+.ss-pair-button {
+  color: #0A84FF; /* text-iris-primary-blue */
+  font-weight: 600; /* font-semibold */
+}
+/* ================== */
+
+
+/* --- Preferences / Notifications Section --- */
+.ss-section-items-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* space-y-2 */
+}
+
+/* --- Slider --- */
+.ss-slider-container {
+  background-color: #1C1C1E; /* bg-iris-surface */
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1rem; /* p-4 */
+}
+
+.ss-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* === IDHU PUDHUSU === */
+.ss-slider-value {
+  color: #8E8E93;
+  font-weight: 600;
+}
+/* ================== */
+
+.ss-slider {
+  width: 100%;
+  height: 0.5rem; /* h-2 */
+  background-color: #2C2C2E; /* bg-iris-surface-light */
+  border-radius: 0.5rem; /* rounded-lg */
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  margin-top: 1rem; /* mt-4 */
+}
+
+/* Chrome, Safari, Opera */
+.ss-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+  background: #FFFFFF; /* bg-white */
+  border-radius: 50%;
+  border: 4px solid #0A84FF; /* border-4 border-blue-500 */
+  box-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+/* Firefox */
+.ss-slider::-moz-range-thumb {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+  background: #FFFFFF; /* bg-white */
+  border-radius: 50%;
+  border: 4px solid #0A84FF; /* border-4 border-blue-500 */
+  box-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+
+/* --- Logout Button --- */
+.ss-logout-button-container {
+  padding: 1rem 0; /* py-4 */
+}
+
+.ss-logout-button {
+  width: 100%;
+  background-color: #1C1C1E; /* bg-iris-surface */
+  color: #FF453A; /* text-iris-accent-red */
+  font-weight: 700; /* font-bold */
+  padding: 0.75rem; /* py-3 */
+  border-radius: 0.75rem; /* rounded-xl */
+  font-size: 1rem;
+}

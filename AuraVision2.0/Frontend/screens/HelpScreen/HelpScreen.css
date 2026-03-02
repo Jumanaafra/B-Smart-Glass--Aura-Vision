@@ -1,0 +1,119 @@
+/* screens/HelpScreen.css */
+
+.hs-container {
+  min-height: 100vh;
+  background-color: #0D0D0D; /* bg-iris-bg */
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.5rem; /* p-4 md:p-6 */
+  color: #FFFFFF; /* text-iris-text-primary */
+}
+
+.hs-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0; /* py-4 */
+}
+
+.hs-back-button {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.hs-back-button-icon {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+}
+
+.hs-title {
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: 700; /* font-bold */
+  text-align: center;
+}
+
+/* --- Main Content --- */
+.hs-main {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-top: 1rem; /* mt-4 */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* space-y-4 */
+}
+
+/* --- Accordion Item --- */
+.hs-accordion-item {
+  background-color: #1C1C1E; /* bg-iris-surface */
+  border-radius: 0.75rem; /* rounded-xl */
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.hs-accordion-button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  padding: 1rem; /* p-4 */
+}
+
+.hs-accordion-button:focus {
+  outline: none;
+  background-color: #2C2C2E; /* focus:bg-iris-surface-light */
+}
+
+.hs-accordion-label {
+  display: flex;
+  align-items: center;
+}
+
+.hs-accordion-icon {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+  margin-right: 1rem; /* mr-4 */
+  color: #64D2FF; /* text-iris-primary-cyan */
+}
+
+.hs-accordion-title {
+  font-weight: 600; /* font-semibold */
+  color: #FFFFFF; /* text-iris-text-primary */
+}
+
+.hs-arrow-icon {
+  width: 1.25rem; /* w-5 */
+  height: 1.25rem; /* h-5 */
+  color: #8E8E93; /* text-iris-text-secondary */
+  transition: transform 0.3s ease-in-out;
+}
+
+.hs-arrow-icon-open {
+  transform: rotate(90deg);
+}
+
+.hs-accordion-content {
+  padding: 1rem; /* p-4 */
+  border-top: 1px solid #2C2C2E; /* border-t border-iris-surface-light */
+  color: #8E8E93; /* text-iris-text-secondary */
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* space-y-2 */
+}
+
+.hs-accordion-content p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.hs-accordion-content strong {
+  color: #FFFFFF; /* Lighter text for bold */
+}
+
+.hs-accordion-content a {
+  color: #64D2FF; /* text-iris-primary-cyan */
+  text-decoration: underline;
+}

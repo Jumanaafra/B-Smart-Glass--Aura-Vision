@@ -5,19 +5,31 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "dev:watch": "nodemon server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-node": "npm:@tensorflow/tfjs@^4.22.0",
+    "@vladmandic/face-api": "^1.7.15",
     "axios": "^1.7.9",
+    "bcryptjs": "^2.4.3",
+    "canvas": "^3.2.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^7.0.0",
     "mongoose": "^8.9.5",
     "openai": "^4.78.1",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

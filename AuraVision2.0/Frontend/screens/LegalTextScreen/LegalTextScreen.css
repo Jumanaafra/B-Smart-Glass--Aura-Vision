@@ -1,0 +1,49 @@
+/* screens/LegalTextScreen/LegalTextScreen.css */
+/* HelpScreen.css-la irundhu style-a eduthurukkom */
+
+.ls-container {
+  min-height: 100vh;
+  background-color: #0D0D0D; /* bg-iris-bg */
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.5rem; /* p-4 md:p-6 */
+  color: #FFFFFF; /* text-iris-text-primary */
+}
+
+.ls-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0; /* py-4 */
+}
+
+.ls-back-button {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ls-back-button-icon {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+}
+
+.ls-title {
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: 700; /* font-bold */
+  text-align: center;
+}
+
+.ls-main {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-top: 1rem; /* mt-4 */
+  color: #8E8E93; /* text-iris-text-secondary */
+  line-height: 1.6;
+}
+
+.ls-main p {
+  margin-bottom: 1rem;
+}

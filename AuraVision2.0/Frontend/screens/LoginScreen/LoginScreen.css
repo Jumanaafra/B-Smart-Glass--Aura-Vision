@@ -1,0 +1,170 @@
+/* screens/LoginScreen.css */
+
+.login-container {
+  min-height: 100vh;
+  background-color: #0D0D0D; /* bg-iris-bg */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+}
+
+.login-logo-container {
+  width: 4rem; /* w-16 */
+  height: 4rem; /* h-16 */
+  background-color: #1C1C1E; /* bg-iris-surface */
+  border-radius: 1rem; /* rounded-2xl */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64D2FF; /* text-iris-primary-cyan */
+  margin-top: 3rem; /* mt-12 */
+  margin-bottom: 1rem; /* mb-4 */
+}
+
+.login-logo-icon {
+  width: 2rem; /* w-8 */
+  height: 2rem; /* h-8 */
+}
+
+.login-title {
+  font-size: 1.875rem; /* text-3xl */
+  font-weight: 700; /* font-bold */
+  color: #FFFFFF; /* text-iris-text-primary */
+  text-align: center;
+}
+
+.login-subtitle {
+  color: #8E8E93; /* text-iris-text-secondary */
+  margin-top: 0.25rem; /* mt-1 */
+  margin-bottom: 2rem; /* mb-8 */
+  text-align: center;
+}
+
+
+
+
+.form-container {
+  width: 100%;
+  max-width: 24rem; /* max-w-sm */
+}
+
+.input-group {
+  margin-bottom: 1rem; /* space-y-4 */
+}
+
+.input-label {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: #8E8E93; /* text-iris-text-secondary */
+}
+
+.input-field {
+  width: 100%;
+  background-color: #1C1C1E; /* bg-iris-surface */
+  padding: 1rem;
+  border-radius: 0.75rem; /* rounded-xl */
+  margin-top: 0.25rem; /* mt-1 */
+  border: none;
+  color: #FFFFFF;
+  font-size: 1rem;
+}
+
+.input-field:focus {
+  outline: 2px solid #0A84FF; /* focus:ring-2 focus:ring-iris-primary-blue */
+}
+
+/* For password field */
+.password-wrapper {
+  position: relative;
+}
+
+.password-toggle-button {
+  position: absolute;
+  top: 50%;
+  right: 1rem; /* pr-4 */
+  transform: translateY(-50%);
+  color: #8E8E93; /* text-iris-text-secondary */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  margin-top: 0.125rem; /* Adjusting for mt-1 on parent */
+}
+
+.password-toggle-icon {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+}
+
+.continue-button {
+  width: 100%;
+  background-color: #FFD60A; /* bg-iris-accent-yellow */
+  color: #000000; /* text-black */
+  font-weight: 700; /* font-bold */
+  padding: 1rem; /* py-4 */
+  border-radius: 9999px; /* rounded-full */
+  margin-top: 2rem; /* mt-8 */
+  font-size: 1rem;
+  transition: transform 0.2s;
+}
+
+.continue-button:hover {
+  transform: scale(1.05);
+}
+
+.continue-button:disabled {
+  opacity: 0.7;
+  transform: scale(1);
+  cursor: not-allowed;
+}
+
+.divider-container {
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0; /* my-6 */
+}
+
+.divider-line {
+  flex-grow: 1;
+  border: none;
+  border-top: 1px solid #2C2C2E; /* border-iris-surface-light */
+}
+
+.divider-text {
+  margin: 0 1rem; /* mx-4 */
+  color: #8E8E93; /* text-iris-text-secondary */
+  font-size: 0.875rem; /* text-sm */
+}
+
+/* === IDHA THAAN MAATHIRUKKOM === */
+.register-button-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* space-y-4 */
+}
+
+.register-button {
+  width: 100%;
+  background-color: #1C1C1E; /* bg-iris-surface */
+  padding: 0.75rem; /* py-3 */
+  border-radius: 9999px; /* rounded-full */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600; /* font-semibold */
+  color: #FFFFFF;
+  transition: background-color 0.2s;
+}
+
+.register-button:hover {
+  background-color: #2C2C2E; /* hover:bg-iris-surface-light */
+}
+/* ================================ */
+
+
+.need-help-button {
+  margin-top: 2rem; /* mt-8 */
+  color: #64D2FF; /* text-iris-primary-cyan */
+  width: 100%;
+  text-align: center;
+}
