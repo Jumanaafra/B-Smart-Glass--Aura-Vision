@@ -10,7 +10,7 @@ const { Server } = require("socket.io");
 
 // 🔥 Face API Imports 🔥
 const { Canvas, Image, ImageData } = require('canvas');
-const faceapi = require('@vladmandic/face-api');
+
 
 // Models
 const User = require('./models/User');
@@ -188,3 +188,4 @@ app.post('/api/ai/chat', async (req, res) => { /* Same as before */ });
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => { console.log(`🚀 Socket Server running on http://localhost:${PORT}`); });
+
