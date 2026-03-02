@@ -41,11 +41,11 @@ const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
 // ── COOKIE OPTIONS ────────────────────────────────────────────────────────────
 // httpOnly: JS cannot read this cookie (prevents XSS token theft)
 // secure:   Only sent over HTTPS (disabled in dev)
-// sameSite: 'lax' works when frontend and backend share same origin via Vite proxy
+// sameSite: 'none' is REQUIRED when frontend (Vercel) and backend (Render) are on different domains
 const cookieOptions = {
   httpOnly: true,
   secure: IS_PROD,
-  sameSite: IS_PROD ? 'strict' : 'lax',
+  sameSite: IS_PROD ? 'none' : 'lax',
   maxAge: COOKIE_MAX_AGE,
   path: '/',
 };
