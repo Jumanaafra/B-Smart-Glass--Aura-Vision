@@ -29,15 +29,9 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
     const currentUser = JSON.parse(userStr);
 
     try {
-      const response = await fetch(`/api/faces/${currentUser._id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
-        }
-      });
-      // NOTE: Our API helper 'apiFetch' already handles cookies, but doing a manual fetch here needs relative path since Vite proxy is setup.
-      // Better to use a clean apiFetch or absolute proxy URL. Wait, utils/api has a facesAPI? No, it only has addPerson.
-      // Let's implement fetch inline using the proxy path:
-      const res = await fetch(`/api/faces/${currentUser._id}`, { credentials: 'include' });
+      // Use the centralized apiFetch wrapper (facesAPI) so it automatically
+      // handles the Vercel/production base URL and the Bearer token headers.
+      const res = await facesAPI.getFaces(currentUser._id);
       const data = await res.json();
       if (res.ok) {
         setSavedFaces(data);
