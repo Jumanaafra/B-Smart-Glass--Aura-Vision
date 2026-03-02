@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "dev:watch": "nodemon server.js"
+    "dev:watch": "nodemon server.js",
+    "build": "npm rebuild canvas && npm rebuild @tensorflow/tfjs-node"
   },
   "keywords": [],
   "author": "",
@@ -33,6 +34,3 @@
     "nodemon": "^3.1.14"
   }
 }
-
-
-
