@@ -67,7 +67,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // ── SOCKET.IO ─────────────────────────────────────────────────────────────────
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
+  cors: { origin: true, methods: ['GET', 'POST'], credentials: true },
 });
 
 // ── MONGODB ───────────────────────────────────────────────────────────────────
