@@ -1,0 +1,283 @@
+/* screens/PairingScreen.css */
+
+.pairing-container {
+  min-height: 100vh;
+  background-color: #0D0D0D; /* bg-iris-bg */
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  color: #FFFFFF; /* text-iris-text-primary */
+}
+
+.pairing-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0; /* py-4 */
+}
+
+.back-button {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #FFFFFF;
+  cursor: pointer;
+}
+
+.back-button-icon {
+  width: 1.5rem; /* w-6 */
+  height: 1.5rem; /* h-6 */
+}
+
+.pairing-title {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 700; /* font-bold */
+  text-align: center;
+}
+
+.pairing-body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.pairing-icons-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem; /* space-x-4 */
+  color: #FFD60A; /* text-iris-accent-yellow */
+  margin: 2.5rem 0; /* my-10 */
+}
+
+.icon-box {
+  width: 5rem; /* w-20 */
+  height: 5rem; /* h-20 */
+  background-color: #2C2C2E; /* bg-iris-surface-light */
+  border-radius: 1rem; /* rounded-2xl */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-box-glasses {
+  width: 2.5rem; /* w-10 */
+  height: 2.5rem; /* h-10 */
+}
+
+.icon-box-phone {
+  font-size: 2.25rem; /* text-4xl */
+}
+
+.icon-dots {
+  font-size: 1.5rem; /* text-2xl */
+  font-family: monospace;
+}
+
+.steps-container {
+  width: 100%;
+  max-width: 24rem; /* max-w-sm */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* space-y-4 */
+}
+
+.step-item {
+  background-color: #1C1C1E; /* bg-iris-surface */
+  border-radius: 1rem; /* rounded-2xl */
+  padding: 1rem; /* p-4 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.step-info {
+  display: flex;
+  align-items: center;
+}
+
+.step-number {
+  width: 2.5rem; /* w-10 */
+  height: 2.5rem; /* h-10 */
+  background-color: #FFD60A; /* bg-iris-accent-yellow */
+  border-radius: 9999px; /* rounded-full */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000000; /* text-black */
+  font-weight: 700; /* font-bold */
+  font-size: 1.125rem; /* text-lg */
+  margin-right: 1rem; /* mr-4 */
+}
+
+.step-text h2 {
+  font-weight: 600; /* font-semibold */
+  margin: 0;
+}
+
+.step-text p {
+  font-size: 0.875rem; /* text-sm */
+  color: #8E8E93; /* text-iris-text-secondary */
+  margin: 0;
+}
+
+.step-action .check-icon {
+  width: 2rem; /* w-8 */
+  height: 2rem; /* h-8 */
+  color: #34D399; /* text-green-500 */
+}
+
+.scan-button {
+  background-color: #64D2FF; /* bg-iris-primary-cyan */
+  color: #000000; /* text-black */
+  font-weight: 600; /* font-semibold */
+  padding: 0.5rem 1.5rem; /* px-6 py-2 */
+  border-radius: 9999px; /* rounded-full */
+}
+
+.pairing-footer {
+  width: 100%;
+  max-width: 24rem; /* max-w-sm */
+  margin-left: auto;
+  margin-right: auto;
+  padding-top: 2rem; /* pt-8 */
+  padding-bottom: 1rem; /* pb-4 */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* space-y-4 */
+}
+
+.pair-button {
+  width: 100%;
+  background-color: #64D2FF; /* bg-iris-primary-cyan */
+  color: #000000; /* text-black */
+  font-weight: 700; /* font-bold */
+  padding: 1rem; /* py-4 */
+  border-radius: 9999px; /* rounded-full */
+  transition: transform 0.2s;
+}
+
+.pair-button:hover {
+  transform: scale(1.05);
+}
+
+.help-button {
+  width: 100%;
+  background-color: #1C1C1E; /* bg-iris-surface */
+  color: #FFFFFF;
+  font-weight: 700; /* font-bold */
+  padding: 1rem; /* py-4 */
+  border-radius: 9999px; /* rounded-full */
+}
+
+
+/* --- Idhu Scan Popup-ku Aana CSS --- */
+
+.scan-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: #000000;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-overlay-dim {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.scan-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #FFFFFF;
+}
+
+.scan-title {
+  font-size: 1.125rem; /* text-lg */
+  font-weight: 600; /* font-semibold */
+  margin-bottom: 1rem; /* mb-4 */
+}
+
+.scan-box {
+  width: 16rem; /* w-64 */
+  height: 16rem; /* h-64 */
+  border: 2px solid rgba(255, 255, 255, 0.5); /* border-2 border-white/50 */
+  border-radius: 0.5rem; /* rounded-lg */
+  position: relative;
+}
+
+/* Designing the scanner corners */
+.scan-corner {
+  position: absolute;
+  width: 2.5rem; /* w-10 */
+  height: 2.5rem; /* h-10 */
+  border-color: #64D2FF; /* border-iris-primary-cyan */
+}
+.scan-corner-tl {
+  top: -4px;
+  left: -4px;
+  border-top-width: 4px;
+  border-left-width: 4px;
+  border-top-left-radius: 0.5rem; /* rounded-tl-lg */
+}
+.scan-corner-tr {
+  top: -4px;
+  right: -4px;
+  border-top-width: 4px;
+  border-right-width: 4px;
+  border-top-right-radius: 0.5rem; /* rounded-tr-lg */
+}
+.scan-corner-bl {
+  bottom: -4px;
+  left: -4px;
+  border-bottom-width: 4px;
+  border-left-width: 4px;
+  border-bottom-left-radius: 0.5rem; /* rounded-bl-lg */
+}
+.scan-corner-br {
+  bottom: -4px;
+  right: -4px;
+  border-bottom-width: 4px;
+  border-right-width: 4px;
+  border-bottom-right-radius: 0.5rem; /* rounded-br-lg */
+}
+
+.scan-subtitle {
+  margin-top: 1rem; /* mt-4 */
+  text-align: center;
+  padding: 0 2rem; /* px-8 */
+}
+
+.scan-cancel-button {
+  position: absolute;
+  bottom: 2.5rem; /* bottom-10 */
+  background-color: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  color: #FFFFFF;
+  font-weight: 700; /* font-bold */
+  padding: 0.75rem 2rem; /* py-3 px-8 */
+  border-radius: 9999px; /* rounded-full */
+  z-index: 10;
+}

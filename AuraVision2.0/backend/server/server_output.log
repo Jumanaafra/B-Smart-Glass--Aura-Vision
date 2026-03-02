@@ -1,0 +1,26 @@
+node:internal/modules/cjs/loader:1372
+  throw err;
+  ^
+
+Error: Cannot find module '@tensorflow/tfjs-node'
+Require stack:
+- D:\B smart glass prt\v2\B-Smart-Glass--Aura-Vision\AuraVision2.0\backend\server\node_modules\@vladmandic\face-api\dist\face-api.node.js
+- D:\B smart glass prt\v2\B-Smart-Glass--Aura-Vision\AuraVision2.0\backend\server\server.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1369:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Module._load (node:internal/modules/cjs/loader:1179:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.require (node:internal/modules/cjs/loader:1449:12)
+    at require (node:internal/modules/helpers:135:16)
+    at D:\B smart glass prt\v2\B-Smart-Glass--Aura-Vision\AuraVision2.0\backend\server\node_modules\@vladmandic\face-api\dist\face-api.node.js:7:1195
+    at D:\B smart glass prt\v2\B-Smart-Glass--Aura-Vision\AuraVision2.0\backend\server\node_modules\@vladmandic\face-api\dist\face-api.node.js:7:223 {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'D:\\B smart glass prt\\v2\\B-Smart-Glass--Aura-Vision\\AuraVision2.0\\backend\\server\\node_modules\\@vladmandic\\face-api\\dist\\face-api.node.js',
+    'D:\\B smart glass prt\\v2\\B-Smart-Glass--Aura-Vision\\AuraVision2.0\\backend\\server\\server.js'
+  ]
+}
+
+Node.js v24.4.1
