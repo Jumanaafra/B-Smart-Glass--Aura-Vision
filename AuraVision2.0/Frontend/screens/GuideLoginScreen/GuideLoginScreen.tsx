@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Page } from '../../types';
 import { Icon } from '../../components/Icon';
-import { authAPI } from '../../utils/api';
+import { authAPI, setToken } from '../../utils/api';
 import './GuideLoginScreen.css';
 
 interface GuideLoginScreenProps {
@@ -44,7 +44,9 @@ export const GuideLoginScreen: React.FC<GuideLoginScreenProps> = ({ setPage }) =
       const data = await response.json();
 
       if (response.ok) {
-        // Cookie is set automatically by the backend (httpOnly)
+        // Save token to localStorage for Authorization headers
+        if (data.token) setToken(data.token);
+
         // Only store non-sensitive user data for UI display
         if (data.user) localStorage.setItem('currentUser', JSON.stringify(data.user));
         setPage(Page.GUIDE_MAIN);

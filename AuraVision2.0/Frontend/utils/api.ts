@@ -2,12 +2,10 @@
 // -----------------------------------------------------------------------
 // Centralised API helper for AuraVision frontend.
 //
-// Auth strategy: HTTP-only cookies (set by backend on login/register).
-// The browser automatically sends the cookie with every request — no
-// manual token reading needed. We only need to set credentials: 'include'.
-//
-// In development the Vite proxy forwards /api → localhost:5000, so the
-// browser sees a same-origin request and SameSite=Lax cookies are sent.
+// Auth strategy: localStorage Token.
+// The backend returns a { token } on login/register.
+// We save it to localStorage and inject it into the Authorization header
+// of every request automatically.
 // -----------------------------------------------------------------------
 
 /**
@@ -18,47 +16,57 @@
 export const BACKEND_URL =
     (import.meta as any).env?.VITE_BACKEND_URL || '';
 
-// ── localStorage helpers (user object only — token is in cookie now) ─────────
+// ── localStorage helpers ──────────────────────────────────────────────────
 
-/** Returns the currently logged-in user object from localStorage (non-sensitive UI data) */
+/** Returns the currently logged-in user object from localStorage */
 export const getCurrentUser = (): any | null => {
     const str = localStorage.getItem('currentUser');
     return str ? JSON.parse(str) : null;
 };
 
-/** Clears user data from localStorage. Cookie is cleared via /api/auth/logout. */
+/** Returns the JWT token from localStorage */
+export const getToken = (): string | null => {
+    return localStorage.getItem('authToken');
+};
+
+/** Sets the JWT token in localStorage */
+export const setToken = (token: string): void => {
+    localStorage.setItem('authToken', token);
+};
+
+/** Clears user data and token from localStorage */
 export const clearLocalAuth = (): void => {
     localStorage.removeItem('currentUser');
-    // Legacy keys — clear these too in case they exist from a previous session
     localStorage.removeItem('authToken');
     localStorage.removeItem('guideAuthToken');
     localStorage.removeItem('userAuthToken');
 };
 
-// ── Deprecated shim — kept so old callers compile without errors ──────────────
-/** @deprecated Token is now an httpOnly cookie. This always returns null. */
-export const getToken = (): string | null => null;
-
-/** @deprecated Use clearLocalAuth() instead. This is a no-op for the token. */
 export const clearAuth = clearLocalAuth;
 
 // ── Header builder ────────────────────────────────────────────────────────────
 
 /**
  * Default headers for every request.
- * No Authorization header needed — the browser sends the httpOnly cookie automatically.
+ * Automatically injects the Authorization Bearer token if it exists in localStorage.
  */
-export const getHeaders = (): Record<string, string> => ({
-    'Content-Type': 'application/json',
-});
+export const getHeaders = (): Record<string, string> => {
+    const token = getToken();
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+};
 
 // ── Core fetch wrapper ───────────────────────────────────────────────────────
 
 /**
  * apiFetch — wraps fetch with:
  *  - Automatic base URL prepend
- *  - credentials: 'include' → browser sends the httpOnly JWT cookie
- *  - JSON Content-Type header
+ *  - JSON Content-Type & Authorization headers
  */
 export const apiFetch = async (
     endpoint: string,
@@ -67,7 +75,6 @@ export const apiFetch = async (
     const url = `${BACKEND_URL}${endpoint}`;
     return fetch(url, {
         ...options,
-        credentials: 'include', // ← required to send/receive cookies cross-origin
         headers: {
             ...getHeaders(),
             ...(options.headers as Record<string, string> || {}),
@@ -78,14 +85,14 @@ export const apiFetch = async (
 // ── Auth API ─────────────────────────────────────────────────────────────────
 
 export const authAPI = {
-    /** Login — backend sets httpOnly cookie in response; body contains { user } */
+    /** Login — returns { token, user } in body */
     login: (email: string, password: string) =>
         apiFetch('/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password }),
         }),
 
-    /** Register — backend sets httpOnly cookie in response; body contains { user } */
+    /** Register — returns { token, user } in body */
     register: (data: {
         fullName: string;
         email: string;
@@ -99,15 +106,16 @@ export const authAPI = {
         }),
 
     /**
-     * Logout — calls backend to clear the httpOnly cookie.
-     * Always call this; js cannot clear httpOnly cookies itself.
+     * Logout — clears localStorage and calls backend.
      */
-    logout: () =>
-        apiFetch('/api/auth/logout', { method: 'POST' }),
+    logout: () => {
+        clearLocalAuth();
+        return apiFetch('/api/auth/logout', { method: 'POST' });
+    },
 
     /**
-     * Get current user from existing cookie (session restore on page refresh).
-     * Returns { user } if cookie is valid, or 401 if not logged in.
+     * Get current user (session restore on page refresh using token).
+     * Returns { user } if token is valid.
      */
     me: () => apiFetch('/api/auth/me'),
 

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Page } from '../../types';
 import { Icon } from '../../components/Icon';
-import { authAPI } from '../../utils/api';
+import { authAPI, setToken } from '../../utils/api';
 import './RegistrationScreen.css';
 
 interface RegistrationScreenProps {
@@ -48,7 +48,9 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({ setPage 
       const data = await response.json();
 
       if (response.ok) {
-        // Cookie is set automatically by the backend (httpOnly)
+        // Save token to localStorage for Authorization headers
+        if (data.token) setToken(data.token);
+
         // Only store non-sensitive user data for UI display
         if (data.user) localStorage.setItem('currentUser', JSON.stringify(data.user));
         alert('Registration successful! You can now log in.');
