@@ -28,10 +28,11 @@ try {
 // Models
 const User = require('./models/User');
 const Face = require('./models/Face');
-const History = require('./models/History'); 
+const History = require('./models/History');
 
 dotenv.config();
 const app = express();
+app.set('trust proxy', 1); // <--- CRITICAL for Render! Allows secure cookies behind reverse proxy
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -148,11 +149,11 @@ const authenticateToken = (req, res, next) => {
 // ── SOCKET.IO EVENTS ──────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('📱 A user connected:', socket.id);
-  
+
   socket.on('send-video-frame', (data) => {
-      socket.broadcast.emit('receive-video-frame', data);
+    socket.broadcast.emit('receive-video-frame', data);
   });
-  
+
   socket.on('send-location', async (data) => {
     socket.broadcast.emit('receive-location', data);
     if (data.deviceId) {
