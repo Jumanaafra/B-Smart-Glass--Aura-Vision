@@ -40,6 +40,8 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
 
   const [socketStatus, setSocketStatus] = useState("Connecting...");
   const [isLive, setIsLive] = useState(false);
+  const [mapType, setMapType] = useState<'normal' | 'satellite'>('satellite');
+  const [address, setAddress] = useState<string>("Fetching location name...");
 
   const getUserDeviceId = () => {
     const userStr = localStorage.getItem('currentUser');
@@ -62,6 +64,7 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
         .then(data => {
           if (!isLive && data.lastLocation?.lat && data.lastLocation?.lng) {
             setLiveLoc(data.lastLocation);
+            fetchAddress(data.lastLocation.lat, data.lastLocation.lng);
           }
         })
         .catch(err => console.error('Error fetching last location:', err));
@@ -77,12 +80,23 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
     socket.on('receive-location', (data) => {
       if (data.lat && data.lng) {
         setLiveLoc(data);
+        fetchAddress(data.lat, data.lng);
         setIsLive(true);
       }
     });
 
     return () => { socket.disconnect(); };
   }, []);
+
+  const fetchAddress = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      const data = await res.json();
+      setAddress(data.display_name || "Unknown Location");
+    } catch (e) {
+      setAddress("Name unavailable");
+    }
+  };
 
   return (
     <div className="gm-container">
@@ -120,15 +134,37 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
 
         {/* 2. Map Section (Same Size Card Style) */}
         <div className="gm-section">
-          <h2 className="gm-section-title">Current Location</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h2 className="gm-section-title" style={{ marginBottom: 0 }}>Current Location</h2>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setMapType('normal')}
+                style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #ccc', background: mapType === 'normal' ? '#007aff' : '#fff', color: mapType === 'normal' ? '#fff' : '#333', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+              >
+                Normal
+              </button>
+              <button
+                onClick={() => setMapType('satellite')}
+                style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #ccc', background: mapType === 'satellite' ? '#007aff' : '#fff', color: mapType === 'satellite' ? '#fff' : '#333', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+              >
+                Satellite
+              </button>
+            </div>
+          </div>
           <div className="gm-card map-card">
             {/* Zoom Control Enabled (zoomControl={true}) */}
             <MapContainer center={[liveLoc.lat, liveLoc.lng]} zoom={16} style={{ height: '100%', width: '100%' }} zoomControl={true}>
-              {/* OpenStreetMap (Standard) - ஊர் பெயர் தெளிவாக தெரியும் */}
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              {mapType === 'satellite' ? (
+                <TileLayer
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                />
+              ) : (
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+              )}
 
               <Marker position={[liveLoc.lat, liveLoc.lng]}>
                 <Popup className="custom-popup">User is here</Popup>
@@ -137,10 +173,15 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
             </MapContainer>
           </div>
 
-          {/* Coordinates Display */}
+          {/* Coordinates & Address Display */}
           <div className="gm-address-box">
-            <p><strong>Latitude:</strong> {liveLoc.lat.toFixed(6)}</p>
-            <p><strong>Longitude:</strong> {liveLoc.lng.toFixed(6)}</p>
+            <div style={{ display: 'flex', gap: '30px' }}>
+              <p><strong>Latitude:</strong> {liveLoc.lat.toFixed(6)}</p>
+              <p><strong>Longitude:</strong> {liveLoc.lng.toFixed(6)}</p>
+            </div>
+            <p style={{ marginTop: '8px', fontSize: '0.9rem', color: '#555' }}>
+              <strong>Location:</strong> {address}
+            </p>
           </div>
         </div>
 

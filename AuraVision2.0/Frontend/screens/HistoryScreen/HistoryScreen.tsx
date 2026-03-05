@@ -36,6 +36,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
   const [pageNumber, setPageNumber] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [filterType, setFilterType] = useState<'ALL' | 'VOICE' | 'LOCATION'>('ALL');
   const [lastKnownAddress, setLastKnownAddress] = useState("Fetching location...");
   const [lastLoc, setLastLoc] = useState<{ lat: number, lng: number } | null>(null);
 
@@ -49,20 +50,30 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
     }
   };
 
-  const loadHistory = async (pageNum: number) => {
+  const loadHistory = async (pageNum: number, currentFilter: 'ALL' | 'VOICE' | 'LOCATION') => {
     const userStr = localStorage.getItem('currentUser');
     if (!userStr) return;
     const currentUser = JSON.parse(userStr);
 
     setLoading(true);
     try {
-      // 1. Get History List (uses VITE_BACKEND_URL from .env)
-      const res = await historyAPI.getHistory(currentUser._id, pageNum, 15);
+      // Get History List (uses VITE_BACKEND_URL from .env)
+      // Since backend doesn't support query filters right now, we fetch a larger chunk
+      // and filter locally for the UI.
+      const res = await historyAPI.getHistory(currentUser._id, pageNum, 30);
       const data = await res.json();
 
-      if (data.length < 15) setHasMore(false);
+      let displayData = data;
+      if (currentFilter !== 'ALL') {
+        displayData = data.filter((item: any) => item.type === currentFilter);
+      }
 
-      const enrichedData = await Promise.all(data.map(async (item: any) => {
+      // Limit to 10
+      displayData = displayData.slice(0, 10);
+
+      if (data.length < 30) setHasMore(false);
+
+      const enrichedData = await Promise.all(displayData.map(async (item: any) => {
         let addr = '';
         if (item.location && item.location.lat) {
           addr = `${item.location.lat.toFixed(4)}, ${item.location.lng.toFixed(4)}`;
@@ -70,7 +81,14 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
         return { ...item, address: addr };
       }));
 
-      setHistory(prev => [...prev, ...enrichedData]);
+      if (pageNum === 1) {
+        setHistory(enrichedData);
+      } else {
+        setHistory(prev => {
+          const newItems = enrichedData.filter((n: any) => !prev.some(p => p._id === n._id));
+          return [...prev, ...newItems];
+        });
+      }
 
       // 3. Get Last Known Location (only on first page)
       if (pageNum === 1) {
@@ -91,13 +109,16 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
   };
 
   useEffect(() => {
-    loadHistory(1);
-  }, []);
+    setPageNumber(1);
+    setHasMore(true);
+    // On mount or filter change, reload page 1 with new filter
+    loadHistory(1, filterType);
+  }, [filterType]);
 
   const handleLoadMore = () => {
     const nextPage = pageNumber + 1;
     setPageNumber(nextPage);
-    loadHistory(nextPage);
+    loadHistory(nextPage, filterType);
   };
 
   const formatTime = (dateString: string) => {
@@ -136,7 +157,18 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
 
         {/* History List */}
         <div>
-          <h2 className="hs-section-title">ACTIVITY LOG</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 className="hs-section-title" style={{ marginBottom: 0 }}>ACTIVITY LOG</h2>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as 'ALL' | 'VOICE' | 'LOCATION')}
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '14px', backgroundColor: '#fff' }}
+            >
+              <option value="ALL">All Activity</option>
+              <option value="VOICE">Voice Commands</option>
+              <option value="LOCATION">Location Updates</option>
+            </select>
+          </div>
           <div className="hs-section-content">
             {history.map((item) => (
               <div key={item._id} className="hs-voice-item">

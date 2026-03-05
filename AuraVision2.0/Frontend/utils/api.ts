@@ -152,6 +152,15 @@ export const facesAPI = {
             body: JSON.stringify({ userId, name, imageBase64: imageUrl }),
         }),
     getFaces: (userId: string) => apiFetch(`/api/faces/${userId}`),
+    updateFace: (faceId: string, name: string, imageUrl?: string | null) =>
+        apiFetch(`/api/faces/${faceId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name, imageBase64: imageUrl }),
+        }),
+    deleteFace: (faceId: string) =>
+        apiFetch(`/api/faces/${faceId}`, {
+            method: 'DELETE',
+        }),
 };
 
 // ── AI API ───────────────────────────────────────────────────────────────────

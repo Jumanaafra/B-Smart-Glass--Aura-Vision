@@ -1,8 +1,9 @@
 // screens/AddPersonScreen/AddPersonScreen.tsx
-
 import React, { useState, useEffect, useRef } from 'react';
+
 import { Page } from '../../types';
 import { Icon } from '../../components/Icon';
+import { Loader } from '../../components/Loader/Loader';
 import { facesAPI } from '../../utils/api';
 import './AddPersonScreen.css';
 
@@ -16,6 +17,7 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [savedFaces, setSavedFaces] = useState<any[]>([]);
+  const [editingFaceId, setEditingFaceId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,11 +72,20 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
     setIsLoading(true);
 
     try {
-      const response = await facesAPI.addPerson(
-        currentUser._id,
-        name,
-        imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
-      );
+      let response;
+      if (editingFaceId) {
+        response = await facesAPI.updateFace(
+          editingFaceId,
+          name,
+          imagePreview
+        );
+      } else {
+        response = await facesAPI.addPerson(
+          currentUser._id,
+          name,
+          imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+        );
+      }
 
       const data = await response.json();
 
@@ -82,23 +93,57 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
         setShowSuccess(true);
         setName('');
         setImagePreview(null);
+        setEditingFaceId(null);
         await fetchSavedFaces(); // Refresh the gallery list
         setTimeout(() => {
           setShowSuccess(false);
         }, 3000);
       } else {
-        alert(data.message || "Failed to add person");
+        alert(data.message || "Failed to save person");
       }
 
     } catch (error) {
-      console.error("Error adding person:", error);
+      console.error("Error saving person:", error);
       alert("Server error. Check if backend is running.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const isLimitReached = savedFaces.length >= 5;
+  const handleDelete = async (faceId: string) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this face?");
+    if (!confirmDelete) return;
+
+    setIsLoading(true);
+    try {
+      const response = await facesAPI.deleteFace(faceId);
+      if (response.ok) {
+        if (editingFaceId === faceId) {
+          setEditingFaceId(null);
+          setName('');
+          setImagePreview(null);
+        }
+        await fetchSavedFaces();
+      } else {
+        const data = await response.json();
+        alert(data.message || "Failed to delete face");
+      }
+    } catch (err) {
+      console.error("Delete Error", err);
+      alert("Error connecting to server");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditClick = (face: any) => {
+    setEditingFaceId(face._id);
+    setName(face.name);
+    setImagePreview(face.imageUrl);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const isLimitReached = savedFaces.length >= 5 && !editingFaceId;
 
   return (
     <div className="ap-container">
@@ -150,17 +195,28 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
               />
             </div>
 
+            {isLoading && <Loader message="Processing Face Encoding..." fullScreen={true} />}
+
             <div className="ap-footer">
               <button
                 onClick={handleSave}
                 className="ap-save-button"
-                disabled={!name || !imagePreview || isLoading}
+                disabled={!name || (!imagePreview && !editingFaceId) || isLoading}
               >
-                {isLoading ? 'Saving...' : 'Add Face'}
+                {isLoading ? 'Saving...' : (editingFaceId ? 'Update Face' : 'Add Face')}
               </button>
+              {editingFaceId && (
+                <button
+                  onClick={() => { setEditingFaceId(null); setName(''); setImagePreview(null); }}
+                  className="ap-cancel-button"
+                  style={{ marginTop: '10px', backgroundColor: '#e5e5ea', color: '#1c1c1e', width: '100%', padding: '16px', borderRadius: '16px', border: 'none', fontSize: '1.0625rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel Edit
+                </button>
+              )}
               {showSuccess && (
                 <div className="ap-success-message">
-                  Person added successfully!
+                  {editingFaceId ? 'Person updated successfully!' : 'Person added successfully!'}
                 </div>
               )}
             </div>
@@ -178,13 +234,17 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
             <p style={{ textAlign: 'center', color: '#8E8E93', fontSize: '0.875rem' }}>No faces added yet.</p>
           ) : (
             savedFaces.map((face) => (
-              <div key={face._id} className="ap-gallery-item">
+              <div key={face._id} className="ap-gallery-item" style={{ display: 'flex', alignItems: 'center' }}>
                 <img
                   src={face.imageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${face.name}`}
                   alt={face.name}
                   className="ap-gallery-image"
                 />
-                <span className="ap-gallery-name">{face.name}</span>
+                <span className="ap-gallery-name" style={{ flex: 1, marginLeft: '12px' }}>{face.name}</span>
+                <div className="ap-gallery-actions" style={{ display: 'flex', gap: '16px', paddingRight: '8px' }}>
+                  <button onClick={() => handleEditClick(face)} style={{ background: 'none', border: 'none', color: '#007aff', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>Edit</button>
+                  <button onClick={() => handleDelete(face._id)} style={{ background: 'none', border: 'none', color: '#ff3b30', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                </div>
               </div>
             ))
           )}

@@ -377,19 +377,29 @@ app.post('/api/faces/add', authenticateToken, async (req, res) => {
 
     console.log('Generating face encoding for:', name);
     const img = new Image();
-    img.src = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
 
-    const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-    if (!detection) {
-      return res.status(400).json({ message: 'Could not detect a face. Try a clearer, well-lit photo.' });
-    }
+    // STRICT FORMAT: faceapi canvas Image expects data URLs, not raw base64. Ensure it has prefix.
+    const cleanImgSrc = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+    img.src = cleanImgSrc;
 
-    const descriptor = Array.from(detection.descriptor);
-    // Store the FULL imageBase64 so the frontend gallery has something to show
-    const newFace = new Face({ userId, name, imageUrl: imageBase64, descriptor });
-    await newFace.save();
+    // Small delay to ensure native Canvas processes imageSrc fully
+    setTimeout(async () => {
+      try {
+        const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+        if (!detection) {
+          return res.status(400).json({ message: 'Could not detect a face. Try a clearer, well-lit photo.' });
+        }
 
-    res.status(201).json({ message: 'Person added successfully', face: { _id: newFace._id, name: newFace.name, imageUrl: newFace.imageUrl } });
+        const descriptor = Array.from(detection.descriptor);
+        const newFace = new Face({ userId, name, imageUrl: cleanImgSrc, descriptor });
+        await newFace.save();
+
+        res.status(201).json({ message: 'Person added successfully', face: { _id: newFace._id, name: newFace.name, imageUrl: newFace.imageUrl } });
+      } catch (err) {
+        console.error('Face Detection Logic Error:', err);
+        res.status(500).json({ error: 'Failed to process face encoding: ' + err.message });
+      }
+    }, 100);
   } catch (e) {
     console.error('Add Face Error:', e);
     res.status(500).json({ error: e.message });
@@ -407,6 +417,59 @@ app.get('/api/faces/:userId', authenticateToken, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// ── 10b. UPDATE FACE ─────────────────────────────────────────────────────────
+app.put('/api/faces/:faceId', authenticateToken, async (req, res) => {
+  try {
+    const { name, imageBase64 } = req.body;
+
+    const face = await Face.findById(req.params.faceId);
+    if (!face) return res.status(404).json({ message: 'Face not found.' });
+    if (req.user.id !== face.userId.toString()) return res.status(403).json({ message: 'Forbidden.' });
+
+    if (name) face.name = name;
+
+    if (imageBase64) {
+      if (!faceapi) {
+        return res.status(503).json({ error: 'Face recognition service is unavailable on this server.' });
+      }
+
+      console.log('Updating face encoding for:', name || face.name);
+      const img = new Image();
+      img.src = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+
+      const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+      if (!detection) {
+        return res.status(400).json({ message: 'Could not detect a face in new image. Try a clearer, well-lit photo.' });
+      }
+
+      face.descriptor = Array.from(detection.descriptor);
+      face.imageUrl = imageBase64;
+    }
+
+    await face.save();
+    res.json({ message: 'Face updated successfully', face: { _id: face._id, name: face.name, imageUrl: face.imageUrl } });
+  } catch (e) {
+    console.error('Update Face Error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 10c. DELETE FACE ─────────────────────────────────────────────────────────
+app.delete('/api/faces/:faceId', authenticateToken, async (req, res) => {
+  try {
+    const face = await Face.findById(req.params.faceId);
+    if (!face) return res.status(404).json({ message: 'Face not found.' });
+    if (req.user.id !== face.userId.toString()) return res.status(403).json({ message: 'Forbidden.' });
+
+    await Face.findByIdAndDelete(req.params.faceId);
+    res.json({ message: 'Face deleted successfully.' });
+  } catch (e) {
+    console.error('Delete Face Error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 // ── 11. PROCESS IMAGE (Face Rec + Gemini) ─────────────────────────────────────
 const processImageHandler = async (req, res) => {
