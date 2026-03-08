@@ -13,6 +13,8 @@ interface VisuallyImpairedMainProps {
 
 export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setPage }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const fallTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [status, setStatus] = useState("Tap screen to ask...");
   const [gpsStatus, setGpsStatus] = useState("Waiting for GPS...");
@@ -23,6 +25,7 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
   const [userQuery, setUserQuery] = useState("");
   const [aiReply, setAiReply] = useState("");
   const [language, setLanguage] = useState<'EN' | 'TG'>('EN');
+  const [fallDetectionEnabled, setFallDetectionEnabled] = useState(false);
 
   // User Device ID-ஐ LocalStorage-ல் இருந்து எடுக்குறோம்
   const getUserDeviceId = () => {
@@ -90,24 +93,115 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
     startCamera();
   }, []);
 
-  // Live Video Loop (Balanced Settings: 120ms, 0.6 Quality)
+  // --- WebRTC Broadcaster Setup ---
   useEffect(() => {
     if (!socket) return;
-    const interval = setInterval(() => {
-      if (videoRef.current) {
-        const canvas = document.createElement('canvas');
-        canvas.width = videoRef.current.videoWidth / 2;
-        canvas.height = videoRef.current.videoHeight / 2;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-          const imageBase64 = canvas.toDataURL('image/webp', 0.6);
-          socket.emit('send-video-frame', { image: imageBase64 });
-        }
+
+    const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    const setupRTC = () => {
+      if (peerConnectionRef.current) peerConnectionRef.current.close();
+      const pc = new RTCPeerConnection(configuration);
+      peerConnectionRef.current = pc;
+
+      // Attach the live camera stream tracks to the WebRTC connection
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
       }
-    }, 120);
-    return () => clearInterval(interval);
+
+      // Send local ICE candidates to the Guide
+      pc.onicecandidate = (event) => {
+        if (event.candidate) socket.emit('webrtc-candidate', event.candidate);
+      };
+
+      return pc;
+    };
+
+    // 1. Guide requests connection -> We generate an Offer
+    socket.on('request-webrtc', async () => {
+      const pc = setupRTC();
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('webrtc-offer', offer);
+    });
+
+    // 2. Guide sends Answer back
+    socket.on('webrtc-answer', async (answer) => {
+      if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'closed') {
+        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+      }
+    });
+
+    // 3. Guide sends ICE Candidates
+    socket.on('webrtc-candidate', async (candidate) => {
+      if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'closed') {
+        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+
+    return () => {
+      socket.off('request-webrtc');
+      socket.off('webrtc-answer');
+      socket.off('webrtc-candidate');
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+    };
   }, [socket]);
+
+  // --- Fall Detection using DeviceMotionEvent ---
+  useEffect(() => {
+    if (!fallDetectionEnabled || !socket) return;
+
+    const handleMotion = (event: DeviceMotionEvent) => {
+      if (!event.accelerationIncludingGravity) return;
+
+      const { x, y, z } = event.accelerationIncludingGravity;
+      if (x === null || y === null || z === null) return;
+
+      const acceleration = Math.sqrt(x * x + y * y + z * z);
+
+      // Ambient gravity is ~9.8 m/s^2. A hard impact spikes well above 20 m/s^2.
+      if (acceleration > 20) {
+        if (fallTimeoutRef.current) return;
+
+        console.warn("FALL DETECTED!", acceleration);
+        socket.emit('sos-alert', {
+          deviceId: getUserDeviceId()
+        });
+
+        speak(language === 'TG' ? "Thavidaama erunga. SOS anupiyachu." : "Fall impact detected. SOS sent to guide.");
+
+        // Cooldown of 10 seconds to prevent alert spam
+        fallTimeoutRef.current = setTimeout(() => {
+          fallTimeoutRef.current = null;
+        }, 10000);
+      }
+    };
+
+    window.addEventListener('devicemotion', handleMotion);
+    return () => window.removeEventListener('devicemotion', handleMotion);
+  }, [fallDetectionEnabled, socket, language]);
+
+  const enableFallDetection = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+      try {
+        const permission = await (DeviceMotionEvent as any).requestPermission();
+        if (permission === 'granted') {
+          setFallDetectionEnabled(true);
+          speak(language === 'TG' ? "Mullu paadhukaappu on" : "SOS Fall detection enabled");
+        }
+      } catch (err) {
+        console.error('Fall Detection Permission Error:', err);
+      }
+    } else {
+      setFallDetectionEnabled(true);
+      speak(language === 'TG' ? "Mullu paadhukaappu on" : "SOS Fall detection enabled");
+    }
+  };
 
   const speak = (text: string) => {
     window.speechSynthesis.cancel();
@@ -159,21 +253,30 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
 
   const analyzeImage = async (query: string) => {
     // --- MODE DETECTION ---
-    const VISION_KEYWORDS = ["look", "see", "what is this", "describe", "paar", "munnadi", "photo", "image", "enna", "irukku"];
-    const FACE_KEYWORDS = ["who", "yaar", "face", "mugam", "person", "aalu", "ivan"];
+    const VISION_KEYWORDS = ["look", "see", "what is this", "describe", "paar", "munnadi", "photo", "image", "enna", "irukku", "surroundings"];
+    const FACE_KEYWORDS = ["who", "yaar", "face", "mugam", "person", "aalu", "ivan", "ival", "aver"];
+    const OCR_KEYWORDS = ["read", "text", "paper", "menu", "book", "board", "padi", "ezhuthu", "words"];
 
     let mode = "chat";
-    for (const word of VISION_KEYWORDS) {
-      if (query.includes(word)) { mode = "vision"; break; }
+    // Check OCR first as it's very specific
+    for (const word of OCR_KEYWORDS) {
+      if (query.includes(word)) { mode = "ocr"; break; }
     }
-    for (const word of FACE_KEYWORDS) {
-      if (query.includes(word)) { mode = "face"; break; }
+    if (mode === "chat") {
+      for (const word of VISION_KEYWORDS) {
+        if (query.includes(word)) { mode = "vision"; break; }
+      }
+    }
+    if (mode === "chat") {
+      for (const word of FACE_KEYWORDS) {
+        if (query.includes(word)) { mode = "face"; break; }
+      }
     }
 
     let imageBase64 = null;
 
     // --- OPTIMIZATION: Only grab image if needed ---
-    if (mode === 'vision' || mode === 'face') {
+    if (mode === 'vision' || mode === 'face' || mode === 'ocr') {
       if (!videoRef.current) return;
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
@@ -204,6 +307,11 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
       <header className="vim-header">
         <h1 className="vim-header-title">IRIS Assistant</h1>
         <div className="vim-header-actions">
+          {!fallDetectionEnabled ? (
+            <button onClick={enableFallDetection} className="vim-lang-button" style={{ background: '#ef4444', color: 'white', border: 'none' }}>SOS Off</button>
+          ) : (
+            <button onClick={(e) => { e.stopPropagation(); setFallDetectionEnabled(false); }} className="vim-lang-button" style={{ background: '#10b981', color: 'white', border: 'none' }}>SOS On</button>
+          )}
           <button onClick={toggleLanguage} className="vim-lang-button">{language}</button>
           <div onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setPage(Page.SETTINGS)}><Icon name="settings" className="vim-icon-settings" /></button>
