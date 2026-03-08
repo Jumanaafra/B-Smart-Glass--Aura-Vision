@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Page } from '../../types';
 import { Icon } from '../../components/Icon';
 import { io } from "socket.io-client";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { userAPI } from '../../utils/api';
 import './GuideMain.css';
@@ -34,7 +34,9 @@ const RecenterMap = ({ lat, lng }: { lat: number; lng: number }) => {
 };
 
 export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
-  const [liveImage, setLiveImage] = useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const peerConnectionRef = React.useRef<RTCPeerConnection | null>(null);
+
   // Default: Chennai (DB load aagura varaikum)
   const [liveLoc, setLiveLoc] = useState<{ lat: number, lng: number }>({ lat: 13.0827, lng: 80.2707 });
 
@@ -42,6 +44,10 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
   const [isLive, setIsLive] = useState(false);
   const [mapType, setMapType] = useState<'normal' | 'satellite'>('satellite');
   const [address, setAddress] = useState<string>("Fetching location name...");
+
+  const [safeZone, setSafeZone] = useState<{ lat: number, lng: number, radiusInMeters: number, enabled: boolean } | null>(null);
+  const [safeZoneRadius, setSafeZoneRadius] = useState<number>(500);
+  const [alert, setAlert] = useState<{ type: 'SOS' | 'GEOFENCE', message: string, lat?: number, lng?: number, distance?: number } | null>(null);
 
   const getUserDeviceId = () => {
     const userStr = localStorage.getItem('currentUser');
@@ -66,14 +72,53 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
             setLiveLoc(data.lastLocation);
             fetchAddress(data.lastLocation.lat, data.lastLocation.lng);
           }
+          if (data.safeZone) {
+            setSafeZone(data.safeZone);
+            if (data.safeZone.radiusInMeters) setSafeZoneRadius(data.safeZone.radiusInMeters);
+          }
         })
         .catch(err => console.error('Error fetching last location:', err));
     }
 
-    socket.on('connect', () => { setSocketStatus("Connected 🟢"); });
+    socket.on('connect', () => {
+      setSocketStatus("Connected 🟢");
+      // Ask visually impaired unit to start WebRTC process
+      socket.emit('request-webrtc');
+    });
 
-    socket.on('receive-video-frame', (data) => {
-      if (data.image) setLiveImage(data.image);
+    // --- WebRTC Receiver Setup ---
+    const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    const setupRTC = () => {
+      if (peerConnectionRef.current) return peerConnectionRef.current;
+      const pc = new RTCPeerConnection(configuration);
+      peerConnectionRef.current = pc;
+
+      pc.ontrack = (event) => {
+        if (videoRef.current && event.streams && event.streams[0]) {
+          videoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) socket.emit('webrtc-candidate', event.candidate);
+      };
+
+      return pc;
+    };
+
+    socket.on('webrtc-offer', async (offer) => {
+      const pc = setupRTC();
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('webrtc-answer', answer);
+    });
+
+    socket.on('webrtc-candidate', async (candidate) => {
+      if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'closed') {
+        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
     });
 
     // 2. Live Location வந்தா உடனே அப்டேட் பண்ணு
@@ -85,8 +130,51 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
       }
     });
 
+    socket.on('geofence-alert', (data) => {
+      setAlert({
+        type: 'GEOFENCE',
+        message: `User has exited the safe zone! (${data.distance}m away from the zone center)`,
+        lat: data.lat,
+        lng: data.lng
+      });
+    });
+
+    socket.on('sos-alert', (data) => {
+      setAlert({
+        type: 'SOS',
+        message: 'EMERGENCY: Fall Detected or SOS Triggered!',
+        lat: data.lat,
+        lng: data.lng
+      });
+    });
+
     return () => { socket.disconnect(); };
   }, []);
+
+  const handleSaveSafeZone = async (enabled: boolean) => {
+    const userStr = localStorage.getItem('currentUser');
+    if (!userStr) return;
+    const currentUser = JSON.parse(userStr);
+
+    const newZone = {
+      lat: liveLoc.lat,
+      lng: liveLoc.lng,
+      radiusInMeters: safeZoneRadius,
+      enabled: enabled
+    };
+
+    setSafeZone(newZone);
+    try {
+      await userAPI.updateSafeZone(currentUser._id, newZone);
+      if (enabled) {
+        window.alert(`Safe Zone enabled! Radius: ${safeZoneRadius}m`);
+      } else {
+        window.alert('Safe Zone disabled.');
+      }
+    } catch (err) {
+      console.error('Failed to update safe zone', err);
+    }
+  };
 
   const fetchAddress = async (lat: number, lng: number) => {
     try {
@@ -118,37 +206,51 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
 
         {/* 1. Live Video Section (Card Style) */}
         <div className="gm-section">
-          <h2 className="gm-section-title">Live Vision</h2>
+          <h2 className="gm-section-title">Live Vision (WebRTC)</h2>
           <div className="gm-card">
-            {liveImage ? (
-              <img src={liveImage} className="gm-video" alt="Live" />
-            ) : (
-              <div className="gm-card-error">
-                <Icon name="eyeSlash" className="gm-error-icon" />
-                <p>Waiting for video feed...</p>
-              </div>
-            )}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted // Mute Guide's feedback loop
+              className="gm-video"
+              style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+            />
             <div className="gm-live-tag">LIVE</div>
           </div>
         </div>
 
         {/* 2. Map Section (Same Size Card Style) */}
         <div className="gm-section">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <h2 className="gm-section-title" style={{ marginBottom: 0 }}>Current Location</h2>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => setMapType('normal')}
-                style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #ccc', background: mapType === 'normal' ? '#007aff' : '#fff', color: mapType === 'normal' ? '#fff' : '#333', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
-              >
-                Normal
-              </button>
-              <button
-                onClick={() => setMapType('satellite')}
-                style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #ccc', background: mapType === 'satellite' ? '#007aff' : '#fff', color: mapType === 'satellite' ? '#fff' : '#333', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
-              >
-                Satellite
-              </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 className="gm-section-title" style={{ marginBottom: 0 }}>Location & Safe Zone</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setMapType('normal')}
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #ccc', background: mapType === 'normal' ? '#007aff' : '#fff', color: mapType === 'normal' ? '#fff' : '#333', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                >
+                  Normal
+                </button>
+                <button
+                  onClick={() => setMapType('satellite')}
+                  style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #ccc', background: mapType === 'satellite' ? '#007aff' : '#fff', color: mapType === 'satellite' ? '#fff' : '#333', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                >
+                  Satellite
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Ring Radius (m):</span>
+              <input
+                type="number"
+                value={safeZoneRadius}
+                onChange={(e) => setSafeZoneRadius(Number(e.target.value))}
+                style={{ width: '70px', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+              />
+              <button onClick={() => handleSaveSafeZone(true)} style={{ background: '#10b981', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>Drop Safe Zone Ring Here</button>
+              {safeZone?.enabled && <button onClick={() => handleSaveSafeZone(false)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>Turn Off</button>}
             </div>
           </div>
           <div className="gm-card map-card">
@@ -169,6 +271,15 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
               <Marker position={[liveLoc.lat, liveLoc.lng]}>
                 <Popup className="custom-popup">User is here</Popup>
               </Marker>
+
+              {safeZone && safeZone.enabled && safeZone.lat && safeZone.lng && (
+                <Circle
+                  center={[safeZone.lat, safeZone.lng]}
+                  radius={safeZone.radiusInMeters}
+                  pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.2, weight: 2 }}
+                />
+              )}
+
               <RecenterMap lat={liveLoc.lat} lng={liveLoc.lng} />
             </MapContainer>
           </div>
@@ -193,6 +304,27 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
         <button onClick={() => setPage(Page.ADD_PERSON)} className="gm-footer-button"><Icon name="userPlus" className="gm-footer-icon" /><span>Add Face</span></button>
         <button onClick={() => setPage(Page.HISTORY)} className="gm-footer-button"><Icon name="clock" className="gm-footer-icon" /><span>History</span></button>
       </footer>
+
+      {alert && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(239, 68, 68, 0.95)', zIndex: 9999,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+          color: 'white', padding: '20px', textAlign: 'center'
+        }}>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '15px' }}>
+            {alert.type} ALERT
+          </h1>
+          <p style={{ fontSize: '1.2rem', marginBottom: '30px', maxWidth: '400px', lineHeight: '1.5' }}>{alert.message}</p>
+          {alert.distance && <p style={{ fontSize: '1rem', marginBottom: '20px', fontWeight: 'bold' }}>{alert.distance} meters out of bounds.</p>}
+          <button
+            onClick={() => setAlert(null)}
+            style={{ padding: '15px 40px', fontSize: '1.1rem', fontWeight: 'bold', color: '#ef4444', backgroundColor: 'white', border: 'none', borderRadius: '30px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
+          >
+            DISMISS
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -141,6 +141,11 @@ export const userAPI = {
             method: 'PUT',
             body: JSON.stringify({ settings }),
         }),
+    updateSafeZone: (userId: string, safeZone: { lat: number, lng: number, radiusInMeters: number, enabled: boolean }) =>
+        apiFetch(`/api/user/${userId}/safezone`, {
+            method: 'PUT',
+            body: JSON.stringify({ safeZone }),
+        }),
 };
 
 // ── Faces API ────────────────────────────────────────────────────────────────
@@ -171,10 +176,10 @@ export const aiAPI = {
             method: 'POST',
             body: JSON.stringify({ imageBase64, prompt, userId, language, mode }),
         }),
-    chat: (message: string) =>
+    chat: (viUserId: string, message: string) =>
         apiFetch('/api/ai/chat', {
             method: 'POST',
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({ viUserId, message }),
         }),
 };
 

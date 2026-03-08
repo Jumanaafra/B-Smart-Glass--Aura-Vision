@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, Message } from '../../types';
 import { Icon } from '../../components/Icon';
-import { aiAPI } from '../../utils/api';
+import { aiAPI, getCurrentUser } from '../../utils/api';
 import './GuideAiChatScreen.css';
 
 interface GuideAiChatScreenProps {
@@ -41,8 +41,15 @@ export const GuideAiChatScreen: React.FC<GuideAiChatScreenProps> = ({ setPage })
     setIsLoading(true);
 
     try {
+      const currentUser = getCurrentUser();
+      const viUserId = currentUser?._id;
+
+      if (!viUserId) {
+        throw new Error('No user ID found to associate with chat.');
+      }
+
       // Call backend API (uses VITE_BACKEND_URL from .env)
-      const response = await aiAPI.chat(currentInput);
+      const response = await aiAPI.chat(viUserId, currentInput);
 
       const data = await response.json();
 

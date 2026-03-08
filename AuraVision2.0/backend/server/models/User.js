@@ -7,11 +7,18 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   userType: { type: String, enum: ['VISUALLY_IMPAIRED', 'GUIDE'], required: true, default: 'VISUALLY_IMPAIRED' },
-  deviceId: { type: String, default: '' }, 
+  deviceId: { type: String, default: '' },
 
   lastLocation: {
     lat: { type: Number, default: 13.0827 }, // Default Chennai
     lng: { type: Number, default: 80.2707 }
+  },
+
+  safeZone: {
+    lat: { type: Number },
+    lng: { type: Number },
+    radiusInMeters: { type: Number, default: 500 },
+    enabled: { type: Boolean, default: false }
   },
 
   // Settings & accessibility options

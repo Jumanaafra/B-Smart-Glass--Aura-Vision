@@ -133,14 +133,61 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('receive-video-frame', data);
   });
 
+  // WebRTC Signaling Events
+  socket.on('request-webrtc', () => {
+    socket.broadcast.emit('request-webrtc');
+  });
+  socket.on('webrtc-offer', (data) => {
+    socket.broadcast.emit('webrtc-offer', data);
+  });
+  socket.on('webrtc-answer', (data) => {
+    socket.broadcast.emit('webrtc-answer', data);
+  });
+  socket.on('webrtc-candidate', (data) => {
+    socket.broadcast.emit('webrtc-candidate', data);
+  });
+
   socket.on('send-location', async (data) => {
     socket.broadcast.emit('receive-location', data);
     if (data.deviceId) {
-      User.findOneAndUpdate(
-        { deviceId: data.deviceId },
-        { $set: { lastLocation: { lat: data.lat, lng: data.lng } } }
-      ).catch(err => console.error('Location Update Error:', err));
+      try {
+        const user = await User.findOneAndUpdate(
+          { deviceId: data.deviceId },
+          { $set: { lastLocation: { lat: data.lat, lng: data.lng } } },
+          { new: true }
+        );
+
+        // Geofencing Check
+        if (user && user.safeZone && user.safeZone.enabled && user.safeZone.lat && user.safeZone.lng) {
+          const R = 6371e3; // Earth radius in meters
+          const φ1 = user.safeZone.lat * Math.PI / 180;
+          const φ2 = data.lat * Math.PI / 180;
+          const Δφ = (data.lat - user.safeZone.lat) * Math.PI / 180;
+          const Δλ = (data.lng - user.safeZone.lng) * Math.PI / 180;
+
+          const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = R * c;
+
+          if (distance > user.safeZone.radiusInMeters) {
+            socket.broadcast.emit('geofence-alert', {
+              userId: user._id,
+              distance: Math.round(distance),
+              lat: data.lat,
+              lng: data.lng
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Location Update Error:', err);
+      }
     }
+  });
+
+  socket.on('sos-alert', (data) => {
+    socket.broadcast.emit('sos-alert', data);
   });
 
   socket.on('disconnect', () => console.log('User disconnected:', socket.id));
@@ -357,6 +404,27 @@ app.put('/api/user/:id/settings', authenticateToken, async (req, res) => {
   }
 });
 
+// ── 8B. UPDATE SAFE ZONE ───────────────────────────────────────────────────
+app.put('/api/user/:id/safezone', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.id !== req.params.id) return res.status(403).json({ message: 'Forbidden.' });
+    const { safeZone } = req.body;
+    if (!safeZone) return res.status(400).json({ message: 'safeZone object is required.' });
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: { safeZone } },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    res.json({ message: 'Safe Zone updated successfully.', user });
+  } catch (error) {
+    console.error('Update Safe Zone Error:', error);
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+});
+
 // ── 9. ADD FACE ───────────────────────────────────────────────────────────────
 app.post('/api/faces/add', authenticateToken, async (req, res) => {
   try {
@@ -533,30 +601,55 @@ const processImageHandler = async (req, res) => {
         }
       }
 
-      // Fallback to Vision
+      // Fallback to Vision or OCR
       if (!finalResponse) {
-        console.log('🤖 Web asking ChatGPT Vision...');
-        const systemPrompt = language === 'TG'
-          ? "You are a vision assistant guiding a blind person. Reply in 'Tanglish' (Tamil words in English letters). Keep it short and helpful."
-          : 'You are a vision assistant guiding a blind person. Reply in simple English. Keep it short and helpful.';
+        if (mode === 'ocr') {
+          console.log('📖 Web asking ChatGPT OCR...');
+          const systemPrompt = language === 'TG'
+            ? "You are reading text for a blind person. Read any text visible in the image loud and clear. If there is a lot of text, summarize the headings. Reply in 'Tanglish' (Tamil words in English letters)."
+            : "You are reading text for a blind person. Read any text visible in the image loud and clear. If there is a lot of text, summarize the key points. Reply in simple English.";
 
-        const formattedImage = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+          const formattedImage = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
 
-        const aiResponse = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt || 'Describe this scene briefly.' },
-                { type: "image_url", image_url: { url: formattedImage, detail: "low" } }
-              ]
-            }
-          ],
-          max_tokens: 150
-        });
-        finalResponse = aiResponse.choices[0].message.content;
+          const aiResponse = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: systemPrompt },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: prompt || 'Read the text in this image.' },
+                  { type: "image_url", image_url: { url: formattedImage, detail: "high" } } // High detail better for OCR
+                ]
+              }
+            ],
+            max_tokens: 300
+          });
+          finalResponse = aiResponse.choices[0].message.content;
+        } else {
+          console.log('🤖 Web asking ChatGPT Vision...');
+          const systemPrompt = language === 'TG'
+            ? "You are a vision assistant guiding a blind person. Reply in 'Tanglish' (Tamil words in English letters). Keep it short and helpful."
+            : 'You are a vision assistant guiding a blind person. Reply in simple English. Keep it short and helpful.';
+
+          const formattedImage = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+
+          const aiResponse = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: systemPrompt },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: prompt || 'Describe this scene briefly.' },
+                  { type: "image_url", image_url: { url: formattedImage, detail: "low" } }
+                ]
+              }
+            ],
+            max_tokens: 150
+          });
+          finalResponse = aiResponse.choices[0].message.content;
+        }
       }
     }
 
@@ -640,24 +733,43 @@ app.post('/api/ai/describe', async (req, res) => {
         }
       }
 
-      // Fallback to Vision if not Face match or if mode is Vision
+      // Fallback to Vision if not Face match or if mode is Vision/OCR
       if (!finalResponse) {
-        console.log('🤖 Hardware asking ChatGPT Vision...');
-        const formattedImage = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
-        const aiResponse = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: systemInstruction },
-            {
-              role: "user", content: [
-                { type: "text", text: prompt || "Describe the scene for navigation." },
-                { type: "image_url", image_url: { url: formattedImage, detail: "low" } }
-              ]
-            }
-          ],
-          max_tokens: 150,
-        });
-        finalResponse = aiResponse.choices[0].message.content;
+        if (mode === 'ocr') {
+          console.log('🤖 Hardware asking ChatGPT OCR...');
+          const formattedImage = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+          const aiResponse = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: "Read any text visible in the image loud and clear. If there is a lot of text, summarize the key points." },
+              {
+                role: "user", content: [
+                  { type: "text", text: prompt || "Read the text." },
+                  { type: "image_url", image_url: { url: formattedImage, detail: "high" } }
+                ]
+              }
+            ],
+            max_tokens: 300,
+          });
+          finalResponse = aiResponse.choices[0].message.content;
+        } else {
+          console.log('🤖 Hardware asking ChatGPT Vision...');
+          const formattedImage = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+          const aiResponse = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: systemInstruction },
+              {
+                role: "user", content: [
+                  { type: "text", text: prompt || "Describe the scene for navigation." },
+                  { type: "image_url", image_url: { url: formattedImage, detail: "low" } }
+                ]
+              }
+            ],
+            max_tokens: 150,
+          });
+          finalResponse = aiResponse.choices[0].message.content;
+        }
       }
     }
 
@@ -684,17 +796,74 @@ app.post('/api/ai/describe', async (req, res) => {
 // ── 12. AI CHAT ───────────────────────────────────────────────────────────────
 app.post('/api/ai/chat', authenticateToken, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { viUserId, message } = req.body;
     if (!message) return res.status(400).json({ message: 'Message is required.' });
+    if (!viUserId) return res.status(400).json({ message: 'viUserId is required.' });
 
-    console.log('💬 Ask ChatGPT:', message);
+    // Fetch the VI User's data
+    const viUser = await User.findById(viUserId);
+    if (!viUser) {
+      return res.status(404).json({ message: 'Visually Impaired user not found.' });
+    }
+
+    // Fetch the last 5 interactions for this user
+    const historyLogs = await History.find({ userId: viUserId })
+      .sort({ timestamp: -1 })
+      .limit(5);
+
+    // Summarize the interactions
+    const historySummary = historyLogs.map((h, i) => {
+      const time = h.timestamp ? new Date(h.timestamp).toLocaleTimeString() : 'Unknown Time';
+      let action = h.type === 'VOICE' ? `Asked: "${h.content}"` : `Location Update`;
+
+      const aiResponse = h.get('aiResponse') || h.aiResponse;
+      if (h.type === 'VOICE' && aiResponse) {
+        action += ` -> AI replied: "${aiResponse}"`;
+      }
+
+      return `${i + 1}. [${time}] ${action}`;
+    }).join('\n');
+
+    const lat = viUser.lastLocation?.lat || 'unknown';
+    const lng = viUser.lastLocation?.lng || 'unknown';
+
+    let address = 'Location unavailable';
+    if (lat !== 'unknown' && lng !== 'unknown') {
+      try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+          headers: { 'User-Agent': 'AuraVision-Backend/1.0' }
+        });
+        const geoData = await geoRes.json();
+        if (geoData.display_name) {
+          address = geoData.display_name;
+        }
+      } catch (err) {
+        console.error('Reverse Geocoding Error:', err.message);
+      }
+    }
+
+    // Construct a dynamic systemInstruction
+    const systemInstruction = `
+You are the "Aura Guide Assistant". Your purpose is to help the Guide (caretaker) answer questions about the Visually Impaired (VI) user they are monitoring.
+You have access to the VI user's live context. Use this context to answer the Guide's query accurately. 
+If the prompt asks where the user is, describe the location using the street and city details provided below.
+
+[VI USER CONTEXT]
+- Name: ${viUser.fullName}
+- Current Location: ${address}
+- GPS Coordinates: Latitude ${lat}, Longitude ${lng}
+- Last 5 Interactions:
+${historySummary || 'No recent interactions.'}
+    `.trim();
+
+    console.log(`💬 Ask Aura Guide Assistant for VI User (${viUser.fullName}):`, message);
     const aiResponse = await openai.chat.completions.create({
       model: "gpt-4o-mini", // Fast and cost-effective for general chat
-      messages: [ // No history context injected yet, just raw message
-        { role: "system", content: "You are a helpful and concise assistant inside a smart glasses companion app." },
+      messages: [
+        { role: "system", content: systemInstruction },
         { role: "user", content: message }
       ],
-      max_tokens: 200
+      max_tokens: 300
     });
 
     res.json({ reply: aiResponse.choices[0].message.content });
