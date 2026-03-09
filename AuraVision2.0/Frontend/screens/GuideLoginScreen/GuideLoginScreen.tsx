@@ -40,7 +40,7 @@ export const GuideLoginScreen: React.FC<GuideLoginScreenProps> = ({ setPage }) =
 
     try {
       // Backend login API (uses VITE_BACKEND_URL from .env)
-      const response = await authAPI.login(email, password);
+      const response = await authAPI.login(email, password, 'GUIDE');
       const data = await response.json();
 
       if (response.ok) {

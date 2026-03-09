@@ -6,7 +6,7 @@ const UserSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  userType: { type: String, enum: ['VISUALLY_IMPAIRED', 'GUIDE'], required: true, default: 'VISUALLY_IMPAIRED' },
+  userType: { type: String, enum: ['VI', 'GUIDE'], required: true, default: 'VI' },
   deviceId: { type: String, default: '' },
 
   lastLocation: {

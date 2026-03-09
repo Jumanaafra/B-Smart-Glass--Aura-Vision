@@ -99,7 +99,7 @@ loadFaceModels();
 // ── HELPER: Generate JWT Token ────────────────────────────────────────────────────
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user._id.toString(), email: user.email, userType: user.userType },
+    { id: user._id.toString(), email: user.email, userType: user.userType, deviceId: user.deviceId },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -129,30 +129,37 @@ const authenticateToken = (req, res, next) => {
 io.on('connection', (socket) => {
   console.log('📱 A user connected:', socket.id);
 
-  socket.on('send-video-frame', (data) => {
-    socket.broadcast.emit('receive-video-frame', data);
+  socket.on('join-room', (deviceId) => {
+    if (deviceId) {
+      socket.join(deviceId);
+      socket.deviceId = deviceId;
+      console.log(`Socket ${socket.id} joined room ${deviceId}`);
+    }
   });
 
-  // WebRTC Signaling Events
-  socket.on('request-webrtc', () => {
-    socket.broadcast.emit('request-webrtc');
+  socket.on('send-video-frame', (data) => {
+    if (socket.deviceId) socket.to(socket.deviceId).emit('receive-video-frame', data);
+  });
+
+  socket.on('request-webrtc', (data) => {
+    if (socket.deviceId) socket.to(socket.deviceId).emit('request-webrtc', data);
   });
   socket.on('webrtc-offer', (data) => {
-    socket.broadcast.emit('webrtc-offer', data);
+    if (socket.deviceId) socket.to(socket.deviceId).emit('webrtc-offer', data);
   });
   socket.on('webrtc-answer', (data) => {
-    socket.broadcast.emit('webrtc-answer', data);
+    if (socket.deviceId) socket.to(socket.deviceId).emit('webrtc-answer', data);
   });
   socket.on('webrtc-candidate', (data) => {
-    socket.broadcast.emit('webrtc-candidate', data);
+    if (socket.deviceId) socket.to(socket.deviceId).emit('webrtc-candidate', data);
   });
 
   socket.on('send-location', async (data) => {
-    socket.broadcast.emit('receive-location', data);
-    if (data.deviceId) {
+    if (socket.deviceId) {
+      socket.to(socket.deviceId).emit('receive-location', data);
       try {
         const user = await User.findOneAndUpdate(
-          { deviceId: data.deviceId },
+          { deviceId: socket.deviceId, userType: 'VI' },
           { $set: { lastLocation: { lat: data.lat, lng: data.lng } } },
           { new: true }
         );
@@ -165,14 +172,12 @@ io.on('connection', (socket) => {
           const Δφ = (data.lat - user.safeZone.lat) * Math.PI / 180;
           const Δλ = (data.lng - user.safeZone.lng) * Math.PI / 180;
 
-          const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+          const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           const distance = R * c;
 
           if (distance > user.safeZone.radiusInMeters) {
-            socket.broadcast.emit('geofence-alert', {
+            socket.to(socket.deviceId).emit('geofence-alert', {
               userId: user._id,
               distance: Math.round(distance),
               lat: data.lat,
@@ -187,7 +192,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('sos-alert', (data) => {
-    socket.broadcast.emit('sos-alert', data);
+    if (socket.deviceId) socket.to(socket.deviceId).emit('sos-alert', data);
   });
 
   socket.on('disconnect', () => console.log('User disconnected:', socket.id));
@@ -200,10 +205,16 @@ io.on('connection', (socket) => {
 // ── 1. REGISTER ───────────────────────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { fullName, email, password, userType, deviceId } = req.body;
+    let { fullName, email, password, userType, deviceId } = req.body;
+
+    // Normalize legacy frontend strings to the new 1-to-1 Schema ENUM
+    if (userType === 'VISUALLY_IMPAIRED') userType = 'VI';
 
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: 'Full name, email and password are required.' });
+    }
+    if (userType === 'GUIDE' && !deviceId) {
+      return res.status(400).json({ message: 'A valid deviceId must be provided for GUIDE registration.' });
     }
     if (password.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters.' });
@@ -225,7 +236,7 @@ app.post('/api/auth/register', async (req, res) => {
       fullName,
       email: email.toLowerCase(),
       password: hashedPassword,
-      userType: userType || 'VISUALLY_IMPAIRED',
+      userType: userType || 'VI',
       deviceId: deviceId || '',
     });
     await newUser.save();
@@ -246,7 +257,7 @@ app.post('/api/auth/register', async (req, res) => {
 // ── 2. LOGIN ──────────────────────────────────────────────────────────────────
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, userType } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required.' });
@@ -255,6 +266,12 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       return res.status(404).json({ message: 'No account found with this email.' });
+    }
+
+    // Role Enforcement (Preventing VI users from logging into the Guide application, and vice versa)
+    if (userType && user.userType !== userType) {
+      if (userType === 'GUIDE') return res.status(403).json({ message: 'Access denied. You must register as a Guide to log in here.' });
+      if (userType === 'VI') return res.status(403).json({ message: 'Access denied. Please use the Guide portal for Guide accounts.' });
     }
 
     // Support both bcrypt-hashed and legacy plain-text passwords
@@ -275,11 +292,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password.' });
     }
 
-    // ✅ Generate JWT to send in response body
-    const token = generateToken(user);
-
     const userResponse = user.toObject();
     delete userResponse.password;
+
+    // ✅ Generate JWT to send in response body
+    const token = generateToken(user);
 
     res.json({ message: 'Login successful', token, user: userResponse });
   } catch (error) {
@@ -876,7 +893,17 @@ ${historySummary || 'No recent interactions.'}
 // ── 13. GET USER HISTORY ──────────────────────────────────────────────────────
 app.get('/api/history/:userId', authenticateToken, async (req, res) => {
   try {
-    if (req.user.id !== req.params.userId) return res.status(403).json({ message: 'Forbidden.' });
+    // Determine access logic based on userType and deviceId
+    if (req.user.id !== req.params.userId) {
+      if (req.user.userType !== 'GUIDE') {
+        return res.status(403).json({ message: 'Forbidden: Unauthorized access.' });
+      }
+
+      const targetUser = await User.findById(req.params.userId);
+      if (!targetUser || targetUser.deviceId !== req.user.deviceId) {
+        return res.status(403).json({ message: 'Forbidden: deviceId mismatch.' });
+      }
+    }
 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 15;

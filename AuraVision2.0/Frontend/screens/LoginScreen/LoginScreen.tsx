@@ -32,7 +32,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ setPage }) => {
 
     try {
       // --- API CALL (uses VITE_BACKEND_URL from .env) ---
-      const response = await authAPI.login(email, password);
+      const response = await authAPI.login(email, password, 'VI');
       const data = await response.json();
 
       if (response.ok) {
