@@ -86,10 +86,10 @@ export const apiFetch = async (
 
 export const authAPI = {
     /** Login — returns { token, user } in body */
-    login: (email: string, password: string) =>
+    login: (email: string, password: string, userType?: string) =>
         apiFetch('/api/auth/login', {
             method: 'POST',
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ email, password, userType }),
         }),
 
     /** Register — returns { token, user } in body */

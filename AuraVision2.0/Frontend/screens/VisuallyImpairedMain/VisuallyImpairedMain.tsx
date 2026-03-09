@@ -41,6 +41,10 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
     setSocket(newSocket);
     const deviceId = getUserDeviceId();
 
+    newSocket.on('connect', () => {
+      newSocket.emit('join-room', deviceId);
+    });
+
     if ("geolocation" in navigator) {
       setGpsStatus("Requesting Permission...");
 

@@ -82,6 +82,7 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
 
     socket.on('connect', () => {
       setSocketStatus("Connected 🟢");
+      socket.emit('join-room', deviceId);
       // Ask visually impaired unit to start WebRTC process
       socket.emit('request-webrtc');
     });
