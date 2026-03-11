@@ -134,6 +134,18 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
       }
     });
 
+    // VI signals it's ready with camera stream — immediately request WebRTC
+    socket.on('vi-ready', () => {
+      console.log('VI is ready! Requesting WebRTC...');
+      // Close any stale connection first
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+      // Re-request WebRTC offer from the VI
+      socket.emit('request-webrtc');
+    });
+
     // 2. Live Location update received
     socket.on('receive-location', (data) => {
       if (data.lat && data.lng) {

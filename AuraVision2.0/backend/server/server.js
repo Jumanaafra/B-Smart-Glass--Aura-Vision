@@ -161,6 +161,13 @@ io.on('connection', (socket) => {
     if (socket.deviceId) socket.to(socket.deviceId).emit('webrtc-candidate', data);
   });
 
+  // VI user signals camera/stream is fully ready
+  socket.on('vi-ready', () => {
+    if (socket.deviceId) {
+      socket.to(socket.deviceId).emit('vi-ready');
+    }
+  });
+
   socket.on('send-location', async (data) => {
     const targetDeviceId = socket.deviceId || data.deviceId;
 
@@ -422,20 +429,7 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-// ── 7. GET USER PROFILE ───────────────────────────────────────────────────────
-app.get('/api/user/:id', authenticateToken, async (req, res) => {
-  try {
-    if (req.user.id !== req.params.id) return res.status(403).json({ message: 'Forbidden.' });
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user) return res.status(404).json({ message: 'User not found.' });
-    res.json(user);
-  } catch (error) {
-    console.error('Get User Error:', error);
-    res.status(500).json({ message: 'Error fetching user.' });
-  }
-});
-
-// ── 7b. GET CONNECTED VI USER ─────────────────────────────────────────────────
+// ── 7. GET CONNECTED VI USER (Must be BEFORE /:id route) ─────────────────────
 app.get('/api/user/connected-vi', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'GUIDE') return res.status(403).json({ message: 'Only guides can access this.' });
@@ -447,6 +441,29 @@ app.get('/api/user/connected-vi', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Error fetching connected user.' });
   }
 });
+
+// ── 8. GET USER PROFILE ───────────────────────────────────────────────────────
+app.get('/api/user/:id', authenticateToken, async (req, res) => {
+  try {
+    // Allow self-access OR Guide accessing their connected VI user's profile
+    const isSelf = req.user.id === req.params.id;
+    const targetUser = await User.findById(req.params.id).select('-password');
+    if (!targetUser) return res.status(404).json({ message: 'User not found.' });
+
+    if (!isSelf) {
+      // Only allow Guides to view their paired VI user's profile
+      if (req.user.userType !== 'GUIDE' || targetUser.deviceId !== req.user.deviceId) {
+        return res.status(403).json({ message: 'Forbidden.' });
+      }
+    }
+
+    res.json(targetUser);
+  } catch (error) {
+    console.error('Get User Error:', error);
+    res.status(500).json({ message: 'Error fetching user.' });
+  }
+});
+
 
 // ── 8. UPDATE USER SETTINGS ───────────────────────────────────────────────────
 app.put('/api/user/:id/settings', authenticateToken, async (req, res) => {

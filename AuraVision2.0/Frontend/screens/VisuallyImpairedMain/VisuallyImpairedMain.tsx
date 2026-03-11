@@ -89,13 +89,17 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
         }
         if (videoRef.current) videoRef.current.srcObject = stream;
         speak("I am ready.");
+        // Notify the Guide that camera/stream is ready for WebRTC
+        if (socket) {
+          socket.emit('vi-ready');
+        }
       } catch (err) {
         setStatus("Camera Error 🔴");
         speak("Camera error.");
       }
     };
     startCamera();
-  }, []);
+  }, [socket]);
 
   // --- WebRTC Broadcaster Setup ---
   useEffect(() => {
