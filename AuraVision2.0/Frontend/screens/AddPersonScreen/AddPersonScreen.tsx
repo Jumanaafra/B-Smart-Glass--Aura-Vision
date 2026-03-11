@@ -165,7 +165,7 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const isLimitReached = savedFaces.length >= 5 && !editingFaceId;
+  const isLimitReached = savedFaces.length >= 10 && !editingFaceId;
 
   return (
     <div className="ap-container">
@@ -180,7 +180,7 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
 
         {isLimitReached ? (
           <div className="ap-limit-banner">
-            Testing Phase: Limit reached. You can only save up to 5 faces.
+            Limit reached. You can only save up to 10 faces.
           </div>
         ) : (
           <>
@@ -248,7 +248,7 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
         {/* --- Face Gallery --- */}
         <div className="ap-gallery-header">
           <h2 className="ap-gallery-title">Saved Faces</h2>
-          <span className="ap-gallery-count">{savedFaces.length}/5</span>
+          <span className="ap-gallery-count">{savedFaces.length}/10</span>
         </div>
 
         <div className="ap-gallery-list">
