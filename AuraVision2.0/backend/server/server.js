@@ -1017,6 +1017,8 @@ const seedDemoUsers = async () => {
   try {
     const viEmail = 'hardware@auravision.com';
     const guideEmail = 'guide@auravision.com';
+    const testViEmail = 'test_vi@auravision.com';
+    const testGuideEmail = 'test_guide@auravision.com';
 
     // 1. Seed VI User (Hardware) with the specific hardcoded ID mapped to device_001
     let viUser = await User.findOne({ _id: new mongoose.Types.ObjectId('65a1234567890abcdef12345') });
@@ -1050,6 +1052,38 @@ const seedDemoUsers = async () => {
       await guideUser.save();
       console.log('✅ Seeded Demo Guide User (guide@auravision.com / aura1234)');
     }
+
+    // 3. Seed Web-to-Web Test Accounts
+    let testViUser = await User.findOne({ email: testViEmail });
+    if (!testViUser) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('test1234', salt);
+      testViUser = new User({
+        fullName: 'Test VI User',
+        email: testViEmail,
+        password: hashedPassword,
+        userType: 'VI',
+        deviceId: 'test_device_123',
+      });
+      await testViUser.save();
+      console.log('✅ Seeded Test VI User (test_vi@auravision.com / test1234)');
+    }
+
+    let testGuideUser = await User.findOne({ email: testGuideEmail });
+    if (!testGuideUser) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('test1234', salt);
+      testGuideUser = new User({
+        fullName: 'Test Guide User',
+        email: testGuideEmail,
+        password: hashedPassword,
+        userType: 'GUIDE',
+        deviceId: 'test_device_123',
+      });
+      await testGuideUser.save();
+      console.log('✅ Seeded Test Guide User (test_guide@auravision.com / test1234)');
+    }
+
   } catch (error) {
     console.error('❌ Error seeding demo users:', error.message);
   }
