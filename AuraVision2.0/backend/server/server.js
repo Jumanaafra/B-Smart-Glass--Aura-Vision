@@ -101,7 +101,12 @@ loadFaceModels();
 // ── HELPER: Generate JWT Token ────────────────────────────────────────────────────
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user._id.toString(), email: user.email, userType: user.userType, deviceId: user.deviceId },
+    { 
+      id: user._id.toString(), 
+      email: user.email, 
+      userType: user.userType, 
+      deviceId: user.deviceId 
+    },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
