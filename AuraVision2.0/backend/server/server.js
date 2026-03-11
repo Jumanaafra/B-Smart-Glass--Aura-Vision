@@ -12,12 +12,13 @@ const http = require('http');
 const { Server } = require("socket.io");
 
 // Face API & Canvas (Native dependencies - wrapped in try/catch for compatibility)
-let Canvas, Image, ImageData, faceapi;
+let Canvas, Image, ImageData, loadImage, faceapi;
 try {
   const canvas = require('canvas');
   Canvas = canvas.Canvas;
   Image = canvas.Image;
   ImageData = canvas.ImageData;
+  loadImage = canvas.loadImage; // ✅ Proper async image loading
   faceapi = require('@vladmandic/face-api');
   console.log('✅ Face-API & Canvas modules loaded');
 } catch (err) {
@@ -534,41 +535,43 @@ app.post('/api/faces/add', authenticateToken, async (req, res) => {
 
     if (!name || !imageBase64) return res.status(400).json({ message: 'Name and image are required.' });
 
-    // ENFORCE LIMIT: Max 5 faces per user for the testing phase
+    // ENFORCE LIMIT: Max 10 faces per user
     const count = await Face.countDocuments({ userId });
-    if (count >= 5) {
-      return res.status(400).json({ message: 'Limit Reached: You can only add up to 5 faces during the testing phase.' });
+    if (count >= 10) {
+      return res.status(400).json({ message: 'Limit Reached: You can only add up to 10 faces.' });
     }
 
-    if (!faceapi) {
+    if (!faceapi || !loadImage) {
       return res.status(503).json({ error: 'Face recognition service is unavailable on this server.' });
     }
 
     console.log('Generating face encoding for:', name);
-    const img = new Image();
 
-    // STRICT FORMAT: faceapi canvas Image expects data URLs, not raw base64. Ensure it has prefix.
+    // ✅ FIXED: Use canvas.loadImage() which properly awaits image decoding
     const cleanImgSrc = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
-    img.src = cleanImgSrc;
+    const rawBase64 = cleanImgSrc.split(',')[1];
+    const imgBuffer = Buffer.from(rawBase64, 'base64');
 
-    // Small delay to ensure native Canvas processes imageSrc fully
-    setTimeout(async () => {
-      try {
-        const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-        if (!detection) {
-          return res.status(400).json({ message: 'Could not detect a face. Try a clearer, well-lit photo.' });
-        }
+    let detection;
+    try {
+      const img = await loadImage(imgBuffer);
+      detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+    } catch (detErr) {
+      console.error('Face load/detection error:', detErr.message);
+      return res.status(400).json({ message: 'Could not process image. Try a clearer, well-lit JPEG photo.', error: detErr.message });
+    }
 
-        const descriptor = Array.from(detection.descriptor);
-        const newFace = new Face({ userId, name, imageUrl: cleanImgSrc, descriptor });
-        await newFace.save();
+    if (!detection) {
+      return res.status(400).json({ message: 'No face detected. Please use a clear, well-lit photo with the face visible.' });
+    }
 
-        res.status(201).json({ message: 'Person added successfully', face: { _id: newFace._id, name: newFace.name, imageUrl: newFace.imageUrl } });
-      } catch (err) {
-        console.error('Face Detection Logic Error:', err);
-        res.status(500).json({ error: 'Failed to process face encoding: ' + err.message });
-      }
-    }, 100);
+    const descriptor = Array.from(detection.descriptor);
+    const newFace = new Face({ userId, name, imageUrl: cleanImgSrc, descriptor });
+    await newFace.save();
+
+    console.log('✅ Face saved for', name, '| descriptor length:', descriptor.length);
+    res.status(201).json({ message: 'Person added successfully', face: { _id: newFace._id, name: newFace.name, imageUrl: newFace.imageUrl } });
+
   } catch (e) {
     console.error('Add Face Error:', e);
     res.status(500).json({ error: e.message });
@@ -702,10 +705,11 @@ const processImageHandler = async (req, res) => {
       console.log(`📸 Web Mode: ${mode.toUpperCase()}`);
 
       // Try Face Recognition FIRST if explicitly requested
-      if (mode === 'face' && faceapi) {
+      if (mode === 'face' && faceapi && loadImage) {
         try {
-          const img = new Image();
-          img.src = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+          const fmtSrc = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+          const buf = Buffer.from(fmtSrc.split(',')[1], 'base64');
+          const img = await loadImage(buf);
           const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
 
           if (detection) {
@@ -835,8 +839,9 @@ app.post('/api/ai/describe', async (req, res) => {
       // Check Face Recognition FIRST
       if (mode === 'face' && faceapi) {
         try {
-          const img = new Image();
-          img.src = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+          const fmtSrc = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+          const buf = Buffer.from(fmtSrc.split(',')[1], 'base64');
+          const img = await loadImage(buf);
           const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
 
           if (detection) {
