@@ -136,6 +136,7 @@ export const authAPI = {
 
 export const userAPI = {
     getProfile: (userId: string) => apiFetch(`/api/user/${userId}`),
+    getConnectedVI: () => apiFetch(`/api/user/connected-vi`),
     updateSettings: (userId: string, settings: Record<string, any>) =>
         apiFetch(`/api/user/${userId}/settings`, {
             method: 'PUT',

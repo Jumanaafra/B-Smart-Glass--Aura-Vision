@@ -1,0 +1,307 @@
+[
+  {
+    "_id": "69a5bc23d2f53ceeaec2e4af",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "what's in front of you",
+    "timestamp": "2026-03-02T16:34:43.140Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5bc56d2f53ceeaec2e4b2",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "how to navigate out",
+    "timestamp": "2026-03-02T16:35:34.922Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5bc7dd2f53ceeaec2e4b4",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "what kind of guidance",
+    "timestamp": "2026-03-02T16:36:13.945Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5bda0d2f53ceeaec2e4cb",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "naya Eppadi in Tamil",
+    "timestamp": "2026-03-02T16:41:04.271Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5ca9d406482bf922a754b",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "who is she",
+    "timestamp": "2026-03-02T17:36:29.543Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5cadd406482bf922a754e",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "how to navigate the room",
+    "timestamp": "2026-03-02T17:37:33.647Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5cb02406482bf922a7550",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "describe this image",
+    "timestamp": "2026-03-02T17:38:10.381Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5dafe71a6028fdb24e50a",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "describe the image",
+    "timestamp": "2026-03-02T18:46:22.636Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5db3071a6028fdb24e50d",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "how to navigate out the room",
+    "timestamp": "2026-03-02T18:47:12.126Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5dba171a6028fdb24e513",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "tell me the something interesting",
+    "timestamp": "2026-03-02T18:49:05.489Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5dc1f71a6028fdb24e515",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "give me the updates",
+    "timestamp": "2026-03-02T18:51:11.023Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5df6f33bf53664f7c96dc",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "hey tell me what's new update",
+    "timestamp": "2026-03-02T19:05:19.110Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5df8333bf53664f7c96de",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "how to navigate out the room",
+    "timestamp": "2026-03-02T19:05:39.572Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5df9d33bf53664f7c96e0",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "what's in front of me",
+    "timestamp": "2026-03-02T19:06:05.122Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5dfae33bf53664f7c96e2",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "describe the image",
+    "timestamp": "2026-03-02T19:06:22.181Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5dfef33bf53664f7c96e5",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "who is this",
+    "timestamp": "2026-03-02T19:07:27.647Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5e01433bf53664f7c96e8",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "who is this",
+    "timestamp": "2026-03-02T19:08:04.913Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5e07233bf53664f7c96ea",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "who is this",
+    "timestamp": "2026-03-02T19:09:38.675Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a5e0ad33bf53664f7c96ef",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "who is this",
+    "timestamp": "2026-03-02T19:10:37.513Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94e316e3c17ba61b6edcb",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "in front of me",
+    "timestamp": "2026-03-05T09:34:41.825Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94e456e3c17ba61b6edcd",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "describe the image",
+    "timestamp": "2026-03-05T09:35:01.246Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94e606e3c17ba61b6edcf",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "நான் எப்படி இந்த ரூமை விட்டு வெளியே போறது",
+    "timestamp": "2026-03-05T09:35:28.898Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94e766e3c17ba61b6edd1",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "இந்த இமேஜை பார்த்து நீயே சொல்லு எப்படி திரும்ப விட்டு வெளியே போறது",
+    "timestamp": "2026-03-05T09:35:50.740Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94e856e3c17ba61b6edd3",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "திஸ் இமேஜ் ஹவ் டு நேவிகேட் தி டோர்",
+    "timestamp": "2026-03-05T09:36:05.358Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94e9b6e3c17ba61b6edd5",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "describe the image how to go for out the door",
+    "timestamp": "2026-03-05T09:36:27.581Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94eb96e3c17ba61b6edd7",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "read this",
+    "timestamp": "2026-03-05T09:36:57.996Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94edd6e3c17ba61b6edd9",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "who is this",
+    "timestamp": "2026-03-05T09:37:33.627Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a94f0b6e3c17ba61b6eddc",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "who is this",
+    "timestamp": "2026-03-05T09:38:19.613Z",
+    "__v": 0
+  },
+  {
+    "_id": "69adaf00fdefe37ff30385bc",
+    "userId": "69adaf00fdefe37ff30385b9",
+    "type": "VOICE",
+    "content": "What is in front of me?",
+    "aiResponse": "There is a wooden chair in front of you.",
+    "timestamp": "2026-03-08T17:16:43.174Z",
+    "__v": 0
+  },
+  {
+    "_id": "69adaf00fdefe37ff30385bd",
+    "userId": "69adaf00fdefe37ff30385b9",
+    "type": "VOICE",
+    "content": "Read this sign.",
+    "aiResponse": "The sign says \"Caution: Wet Floor\".",
+    "timestamp": "2026-03-08T17:16:48.174Z",
+    "__v": 0
+  },
+  {
+    "_id": "69adb23bfed0652f7f37002a",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "what's in front of me",
+    "aiResponse": "I can't see what is in front of you. Please describe it or tell me what you need help with.",
+    "timestamp": "2026-03-08T17:30:35.020Z",
+    "__v": 0
+  },
+  {
+    "_id": "69adb24efed0652f7f37002c",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "describe the image",
+    "aiResponse": "The image shows a person with an outstretched hand covering most of their face. The background is a room with greenish walls and some hanging clothes. The lighting is dim.",
+    "timestamp": "2026-03-08T17:30:54.824Z",
+    "__v": 0
+  },
+  {
+    "_id": "69adb264fed0652f7f37002e",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "முன்னாடி என்ன இருக்கு",
+    "aiResponse": "முன்னாடி nanna kooda paarthacho? Yaaru sonnangal? Enna vishayam?",
+    "timestamp": "2026-03-08T17:31:16.094Z",
+    "__v": 0
+  },
+  {
+    "_id": "69adb270fed0652f7f370030",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "இந்த போட்டோல என்ன தெரியுது",
+    "aiResponse": "Sorry, naan photo paakave mudiyadhu. Nee sollala, enna irukkuthu?",
+    "timestamp": "2026-03-08T17:31:28.384Z",
+    "__v": 0
+  },
+  {
+    "_id": "69adb281fed0652f7f370032",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "இந்த இமேஜில் இருக்கிற டிஸ்கிரை பண்ணி சொல்லு",
+    "aiResponse": "எனக்கு இமேஜ்கள் பார்ப்பது முடியாது. ஆனால் நீங்க என்ன பார்க்க wanna-nu sollina, adhai pathi help pannalaam!",
+    "timestamp": "2026-03-08T17:31:45.166Z",
+    "__v": 0
+  },
+  {
+    "_id": "69adb28cfed0652f7f370034",
+    "userId": "69a56a0d6a8a0fabd3e5688c",
+    "type": "VOICE",
+    "content": "டிஸ்கிரை திஸ்",
+    "aiResponse": "Enna solla virumbiraa? Unakku edhaavadhu specific topic venuma?",
+    "timestamp": "2026-03-08T17:31:56.430Z",
+    "__v": 0
+  },
+  {
+    "_id": "69afd2933956a0ba419283e6",
+    "userId": "69ae7a8d3a110409b061648f",
+    "type": "VOICE",
+    "content": "describe this",
+    "aiResponse": "I'm sorry, I can't help with identifying or describing people in photos.",
+    "timestamp": "2026-03-10T08:13:07.980Z",
+    "__v": 0
+  }
+]

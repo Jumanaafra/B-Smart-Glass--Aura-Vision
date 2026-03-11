@@ -70,6 +70,8 @@ const io = new Server(server, {
   cors: { origin: true, methods: ['GET', 'POST'], credentials: true },
 });
 
+const locationThrottle = new Map();
+
 // ── MONGODB ───────────────────────────────────────────────────────────────────
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Connected to:', process.env.MONGO_URI))
@@ -155,14 +157,37 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send-location', async (data) => {
-    if (socket.deviceId) {
-      socket.to(socket.deviceId).emit('receive-location', data);
+    const targetDeviceId = socket.deviceId || data.deviceId;
+
+    // Auto-bind deviceId if not joined yet (for Python hardware clients)
+    if (data.deviceId && !socket.deviceId) {
+      socket.deviceId = data.deviceId;
+      socket.join(data.deviceId);
+      console.log(`Socket ${socket.id} auto-joined room ${data.deviceId} via location update`);
+    }
+
+    if (targetDeviceId) {
+      socket.to(targetDeviceId).emit('receive-location', data);
       try {
         const user = await User.findOneAndUpdate(
-          { deviceId: socket.deviceId, userType: 'VI' },
+          { deviceId: targetDeviceId, userType: { $in: ['VI', 'VISUALLY_IMPAIRED'] } },
           { $set: { lastLocation: { lat: data.lat, lng: data.lng } } },
           { new: true }
         );
+
+        // Throttle location history to 1 entry per 60 seconds
+        if (user) {
+          const lastSaved = locationThrottle.get(user._id.toString()) || 0;
+          if (Date.now() - lastSaved > 60000) {
+            locationThrottle.set(user._id.toString(), Date.now());
+            await new History({
+              userId: user._id,
+              type: 'LOCATION',
+              content: 'Location Update',
+              location: { lat: data.lat, lng: data.lng }
+            }).save();
+          }
+        }
 
         // Geofencing Check
         if (user && user.safeZone && user.safeZone.enabled && user.safeZone.lat && user.safeZone.lng) {
@@ -269,9 +294,14 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Role Enforcement (Preventing VI users from logging into the Guide application, and vice versa)
-    if (userType && user.userType !== userType) {
-      if (userType === 'GUIDE') return res.status(403).json({ message: 'Access denied. You must register as a Guide to log in here.' });
-      if (userType === 'VI') return res.status(403).json({ message: 'Access denied. Please use the Guide portal for Guide accounts.' });
+    if (userType) {
+      const isReqVI = userType === 'VI' || userType === 'VISUALLY_IMPAIRED';
+      const isUserVI = user.userType === 'VI' || user.userType === 'VISUALLY_IMPAIRED';
+      if (userType === 'GUIDE' && user.userType !== 'GUIDE') {
+        return res.status(403).json({ message: 'Access denied. You must register as a Guide to log in here.' });
+      } else if (isReqVI && !isUserVI) {
+        return res.status(403).json({ message: 'Access denied. Please use the Guide portal for Guide accounts.' });
+      }
     }
 
     // Support both bcrypt-hashed and legacy plain-text passwords
@@ -400,6 +430,19 @@ app.get('/api/user/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ── 7b. GET CONNECTED VI USER ─────────────────────────────────────────────────
+app.get('/api/user/connected-vi', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.userType !== 'GUIDE') return res.status(403).json({ message: 'Only guides can access this.' });
+    const viUser = await User.findOne({ deviceId: req.user.deviceId, userType: { $in: ['VI', 'VISUALLY_IMPAIRED'] } }).select('-password');
+    if (!viUser) return res.status(404).json({ message: 'No connected VI user found.' });
+    res.json(viUser);
+  } catch (error) {
+    console.error('Get Connected User Error:', error);
+    res.status(500).json({ message: 'Error fetching connected user.' });
+  }
+});
+
 // ── 8. UPDATE USER SETTINGS ───────────────────────────────────────────────────
 app.put('/api/user/:id/settings', authenticateToken, async (req, res) => {
   try {
@@ -424,7 +467,15 @@ app.put('/api/user/:id/settings', authenticateToken, async (req, res) => {
 // ── 8B. UPDATE SAFE ZONE ───────────────────────────────────────────────────
 app.put('/api/user/:id/safezone', authenticateToken, async (req, res) => {
   try {
-    if (req.user.id !== req.params.id) return res.status(403).json({ message: 'Forbidden.' });
+    if (req.user.id !== req.params.id) {
+      if (req.user.userType !== 'GUIDE') {
+        return res.status(403).json({ message: 'Forbidden: Unauthorized access.' });
+      }
+      const targetUser = await User.findById(req.params.id);
+      if (!targetUser || targetUser.deviceId !== req.user.deviceId) {
+        return res.status(403).json({ message: 'Forbidden: deviceId mismatch.' });
+      }
+    }
     const { safeZone } = req.body;
     if (!safeZone) return res.status(400).json({ message: 'safeZone object is required.' });
 
@@ -921,6 +972,49 @@ app.get('/api/history/:userId', authenticateToken, async (req, res) => {
   }
 });
 
+// ── DEMO SEEDING SCRIPT ──────────────────────────────────────────────────────
+const seedDemoUsers = async () => {
+  try {
+    const viEmail = 'hardware@auravision.com';
+    const guideEmail = 'guide@auravision.com';
+
+    // 1. Seed VI User (Hardware) with the specific hardcoded ID mapped to device_001
+    let viUser = await User.findOne({ _id: new mongoose.Types.ObjectId('65a1234567890abcdef12345') });
+    if (!viUser) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('aura1234', salt);
+      viUser = new User({
+        _id: new mongoose.Types.ObjectId('65a1234567890abcdef12345'),
+        fullName: 'Hardware Demo User',
+        email: viEmail,
+        password: hashedPassword,
+        userType: 'VI',
+        deviceId: 'device_001',
+      });
+      await viUser.save();
+      console.log('✅ Seeded Hardware Demo VI User (ID: 65a1234567890abcdef12345, Device: device_001)');
+    }
+
+    // 2. Seed Guide User mapped to device_001
+    let guideUser = await User.findOne({ email: guideEmail });
+    if (!guideUser) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('aura1234', salt);
+      guideUser = new User({
+        fullName: 'Demo Guide',
+        email: guideEmail,
+        password: hashedPassword,
+        userType: 'GUIDE',
+        deviceId: 'device_001',
+      });
+      await guideUser.save();
+      console.log('✅ Seeded Demo Guide User (guide@auravision.com / aura1234)');
+    }
+  } catch (error) {
+    console.error('❌ Error seeding demo users:', error.message);
+  }
+};
+
 // ── HEALTH CHECK ──────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), env: process.env.NODE_ENV });
@@ -928,7 +1022,8 @@ app.get('/api/health', (_req, res) => {
 
 // ── START SERVER ──────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
+  await seedDemoUsers();
   console.log(`\n🚀 AuraVision Backend running at http://localhost:${PORT}`);
   console.log(`   Mode: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Cookies: httpOnly=true, secure=${IS_PROD}, sameSite=${IS_PROD ? 'strict' : 'lax'}`);

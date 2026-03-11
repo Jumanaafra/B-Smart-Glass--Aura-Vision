@@ -42,7 +42,16 @@ export const GuideAiChatScreen: React.FC<GuideAiChatScreenProps> = ({ setPage })
 
     try {
       const currentUser = getCurrentUser();
-      const viUserId = currentUser?._id;
+      let viUserId = currentUser?._id;
+
+      if (currentUser?.userType === 'GUIDE') {
+        const storedViId = localStorage.getItem('connectedVIId');
+        if (storedViId) {
+          viUserId = storedViId;
+        } else {
+          throw new Error('No connected VI user found.');
+        }
+      }
 
       if (!viUserId) {
         throw new Error('No user ID found to associate with chat.');
