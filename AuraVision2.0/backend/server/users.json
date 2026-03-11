@@ -1,0 +1,228 @@
+[
+  {
+    "_id": "69a56a0d6a8a0fabd3e5688c",
+    "fullName": "bharath@gmail.com",
+    "email": "bharath@gmail.com",
+    "password": "$2a$10$7RDWeB/8wv2gimMfvszBJuZbnFJxpwAjfVfJ5KBleR74L9teB6z1a",
+    "userType": "VISUALLY_IMPAIRED",
+    "deviceId": "bharath@gmail.com",
+    "lastLocation": {
+      "lat": 10.81369346792914,
+      "lng": 78.67829681001831
+    },
+    "settings": {
+      "darkMode": true,
+      "hapticFeedback": true,
+      "narrationSpeed": 50,
+      "lowBatteryAlerts": true,
+      "connectionStatus": false,
+      "guideMessages": true,
+      "voiceNarration": true,
+      "highContrast": false
+    },
+    "createdAt": "2026-03-02T10:44:29.459Z",
+    "__v": 0,
+    "safeZone": {
+      "lat": 10.81369346792914,
+      "lng": 78.67829681001831,
+      "radiusInMeters": 500,
+      "enabled": true
+    }
+  },
+  {
+    "_id": "69ae7175a1d1c5ca15c848ba",
+    "fullName": "bharath",
+    "email": "test@gmail.com",
+    "password": "$2a$10$ntWFqHfyCwk/Tbs/o95MtuZcKG2fYwb.y/6zp.2rZg8JjzTCcbkIq",
+    "deviceId": "12345678",
+    "lastLocation": {
+      "lat": 13.0827,
+      "lng": 80.2707
+    },
+    "safeZone": {
+      "radiusInMeters": 500,
+      "enabled": false
+    },
+    "settings": {
+      "darkMode": true,
+      "hapticFeedback": true,
+      "narrationSpeed": 50,
+      "lowBatteryAlerts": true,
+      "connectionStatus": false,
+      "guideMessages": true,
+      "voiceNarration": true,
+      "highContrast": false
+    },
+    "activeSessions": [],
+    "createdAt": "2026-03-09T07:06:29.986Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ae71e4a1d1c5ca15c848c0",
+    "fullName": "bharath",
+    "email": "test1@gmail.com",
+    "password": "$2a$10$vKFbZxEfY7Nz0NIymtFEvuEo76xfMHAeaz9jlqM5FM43/tamSWUE6",
+    "deviceId": "12345678",
+    "lastLocation": {
+      "lat": 13.0827,
+      "lng": 80.2707
+    },
+    "safeZone": {
+      "radiusInMeters": 500,
+      "enabled": false
+    },
+    "settings": {
+      "darkMode": true,
+      "hapticFeedback": true,
+      "narrationSpeed": 50,
+      "lowBatteryAlerts": true,
+      "connectionStatus": false,
+      "guideMessages": true,
+      "voiceNarration": true,
+      "highContrast": false
+    },
+    "activeSessions": [],
+    "createdAt": "2026-03-09T07:08:20.008Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ae76119bd6ee3e574c853d",
+    "fullName": "testName ",
+    "email": "testing@gmail.com",
+    "password": "$2a$10$TyRqHXt.VA9vQU2x/nqmTeXNpvzkISLKT724LwBpvuuvUBu9niqle",
+    "userType": "VI",
+    "deviceId": "1234",
+    "lastLocation": {
+      "lat": 10.81364354330254,
+      "lng": 78.67830612779059
+    },
+    "safeZone": {
+      "radiusInMeters": 500,
+      "enabled": false
+    },
+    "settings": {
+      "darkMode": true,
+      "hapticFeedback": true,
+      "narrationSpeed": 50,
+      "lowBatteryAlerts": true,
+      "connectionStatus": false,
+      "guideMessages": true,
+      "voiceNarration": true,
+      "highContrast": false
+    },
+    "createdAt": "2026-03-09T07:26:09.687Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ae766b9bd6ee3e574c8546",
+    "fullName": "guide ",
+    "email": "guide@gmail.com",
+    "password": "$2a$10$RJrWqR.wFp7zBQzSZhwFC.u9nxP3GbsSMdaIzWdnrwZuaAWcHhzLO",
+    "userType": "GUIDE",
+    "deviceId": "1234",
+    "lastLocation": {
+      "lat": 13.0827,
+      "lng": 80.2707
+    },
+    "safeZone": {
+      "radiusInMeters": 500,
+      "enabled": false
+    },
+    "settings": {
+      "darkMode": true,
+      "hapticFeedback": true,
+      "narrationSpeed": 50,
+      "lowBatteryAlerts": true,
+      "connectionStatus": false,
+      "guideMessages": true,
+      "voiceNarration": true,
+      "highContrast": false
+    },
+    "createdAt": "2026-03-09T07:27:39.325Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ae7a4a3a110409b061648a",
+    "fullName": "muthu",
+    "email": "testing2@gmail.com",
+    "password": "$2a$10$z5J6XAQcui6twFroSAwrHO8YR267wZdns552mAvR.p6eqqUgZLUce",
+    "userType": "VI",
+    "deviceId": "1111",
+    "lastLocation": {
+      "lat": 10.813763236698497,
+      "lng": 78.67830005075032
+    },
+    "safeZone": {
+      "radiusInMeters": 500,
+      "enabled": false
+    },
+    "settings": {
+      "darkMode": true,
+      "hapticFeedback": true,
+      "narrationSpeed": 50,
+      "lowBatteryAlerts": true,
+      "connectionStatus": false,
+      "guideMessages": true,
+      "voiceNarration": true,
+      "highContrast": false
+    },
+    "createdAt": "2026-03-09T07:44:10.741Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ae7a8d3a110409b061648f",
+    "fullName": "alex",
+    "email": "guide2@gmail.com",
+    "password": "$2a$10$czPeVe4MtHOeEKicryUbQO60W/slbkRyoP2bmnGEm8URMpicFYgLG",
+    "userType": "VI",
+    "deviceId": "1111",
+    "lastLocation": {
+      "lat": 13.0827,
+      "lng": 80.2707
+    },
+    "safeZone": {
+      "radiusInMeters": 500,
+      "enabled": false
+    },
+    "settings": {
+      "darkMode": true,
+      "hapticFeedback": true,
+      "narrationSpeed": 50,
+      "lowBatteryAlerts": true,
+      "connectionStatus": false,
+      "guideMessages": true,
+      "voiceNarration": true,
+      "highContrast": false
+    },
+    "createdAt": "2026-03-09T07:45:17.449Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ae7af23a110409b0616496",
+    "fullName": "alex2",
+    "email": "guidetest@gmail.com",
+    "password": "$2a$10$9mDRTiE1913QUFUb7v7ttuQsqajB.zB83mVjN.zC8hPQ22Xs3l/4q",
+    "userType": "GUIDE",
+    "deviceId": "1111",
+    "lastLocation": {
+      "lat": 13.0827,
+      "lng": 80.2707
+    },
+    "safeZone": {
+      "radiusInMeters": 500,
+      "enabled": false
+    },
+    "settings": {
+      "darkMode": true,
+      "hapticFeedback": true,
+      "narrationSpeed": 50,
+      "lowBatteryAlerts": true,
+      "connectionStatus": false,
+      "guideMessages": true,
+      "voiceNarration": true,
+      "highContrast": false
+    },
+    "createdAt": "2026-03-09T07:46:58.624Z",
+    "__v": 0
+  }
+]

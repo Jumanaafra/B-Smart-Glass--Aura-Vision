@@ -61,13 +61,16 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
     const socketUrl = (import.meta as any).env?.VITE_BACKEND_URL || window.location.origin;
     const socket = io(socketUrl);
 
-    // Load last known location from DB for this user
+    // Load last known location from DB for this user's connected VI
     const userStr = localStorage.getItem('currentUser');
     if (userStr) {
-      const currentUser = JSON.parse(userStr);
-      userAPI.getProfile(currentUser._id)
-        .then(res => res.json())
+      userAPI.getConnectedVI()
+        .then(res => {
+          if (!res.ok) throw new Error('Connected VI user not found');
+          return res.json();
+        })
         .then(data => {
+          localStorage.setItem('connectedVIId', data._id);
           if (!isLive && data.lastLocation?.lat && data.lastLocation?.lng) {
             setLiveLoc(data.lastLocation);
             fetchAddress(data.lastLocation.lat, data.lastLocation.lng);
@@ -77,7 +80,7 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
             if (data.safeZone.radiusInMeters) setSafeZoneRadius(data.safeZone.radiusInMeters);
           }
         })
-        .catch(err => console.error('Error fetching last location:', err));
+        .catch(err => console.error('Error fetching connected VI last location:', err));
     }
 
     socket.on('connect', () => {
@@ -153,9 +156,11 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
   }, []);
 
   const handleSaveSafeZone = async (enabled: boolean) => {
-    const userStr = localStorage.getItem('currentUser');
-    if (!userStr) return;
-    const currentUser = JSON.parse(userStr);
+    const viId = localStorage.getItem('connectedVIId');
+    if (!viId) {
+      window.alert('Connected VI user ID not found. Please refresh the page.');
+      return;
+    }
 
     const newZone = {
       lat: liveLoc.lat,
@@ -166,7 +171,7 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
 
     setSafeZone(newZone);
     try {
-      await userAPI.updateSafeZone(currentUser._id, newZone);
+      await userAPI.updateSafeZone(viId, newZone);
       if (enabled) {
         window.alert(`Safe Zone enabled! Radius: ${safeZoneRadius}m`);
       } else {

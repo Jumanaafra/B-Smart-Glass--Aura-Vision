@@ -19,7 +19,7 @@ const FaceSchema = new mongoose.Schema({
     type: String,
     default: 'Known',
   },
-  // 🔥 புதுசா இதைச் சேரு (AI Face Data):
+  // 🔥
   descriptor: { 
     type: [Number], 
     required: true 

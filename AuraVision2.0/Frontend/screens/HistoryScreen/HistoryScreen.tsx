@@ -57,10 +57,32 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
 
     setLoading(true);
     try {
-      // Get History List (uses VITE_BACKEND_URL from .env)
-      // Since backend doesn't support query filters right now, we fetch a larger chunk
-      // and filter locally for the UI.
-      const res = await historyAPI.getHistory(currentUser._id, pageNum, 30);
+      let targetUserId = currentUser._id;
+      let targetLocation: { lat: number, lng: number } | null = null;
+
+      if (currentUser.userType === 'GUIDE') {
+        // 1. Get the Connected VI User's Data first
+        const viRes = await userAPI.getConnectedVI();
+        if (!viRes.ok) {
+          setLoading(false);
+          return;
+        }
+        const viData = await viRes.json();
+        targetUserId = viData._id;
+        targetLocation = viData.lastLocation;
+      } else {
+        // Refresh VI user's profile to get latest location
+        const profileRes = await userAPI.getProfile(currentUser._id);
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          targetLocation = profileData.lastLocation;
+        } else {
+          targetLocation = currentUser.lastLocation;
+        }
+      }
+
+      // 2. Get History List
+      const res = await historyAPI.getHistory(targetUserId, pageNum, 30);
       const data = await res.json();
 
       let displayData = data;
@@ -92,12 +114,12 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
 
       // 3. Get Last Known Location (only on first page)
       if (pageNum === 1) {
-        const locRes = await userAPI.getProfile(currentUser._id);
-        const userData = await locRes.json();
-        if (userData.lastLocation) {
-          setLastLoc(userData.lastLocation);
-          const addr = await fetchAddress(userData.lastLocation.lat, userData.lastLocation.lng);
+        if (targetLocation) {
+          setLastLoc(targetLocation);
+          const addr = await fetchAddress(targetLocation.lat, targetLocation.lng);
           setLastKnownAddress(addr);
+        } else {
+          setLastKnownAddress("No Location Found");
         }
       }
 
