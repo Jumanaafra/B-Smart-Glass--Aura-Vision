@@ -61,23 +61,37 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
       let targetLocation: { lat: number, lng: number } | null = null;
 
       if (currentUser.userType === 'GUIDE') {
-        // 1. Get the Connected VI User's Data first
-        const viRes = await userAPI.getConnectedVI();
-        if (!viRes.ok) {
-          setLoading(false);
-          return;
+        // Use cached connectedVIId from localStorage (set during GuideMain load)
+        const cachedVIId = localStorage.getItem('connectedVIId');
+        if (cachedVIId) {
+          targetUserId = cachedVIId;
+          // Refresh the VI user's profile to get latest lastLocation
+          const profileRes = await userAPI.getProfile(cachedVIId);
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            targetLocation = profileData.lastLocation || null;
+          }
+        } else {
+          // Fallback: fetch from API
+          const viRes = await userAPI.getConnectedVI();
+          if (!viRes.ok) {
+            setLastKnownAddress('Cannot find connected VI user.');
+            setLoading(false);
+            return;
+          }
+          const viData = await viRes.json();
+          targetUserId = viData._id;
+          targetLocation = viData.lastLocation || null;
+          localStorage.setItem('connectedVIId', viData._id);
         }
-        const viData = await viRes.json();
-        targetUserId = viData._id;
-        targetLocation = viData.lastLocation;
       } else {
-        // Refresh VI user's profile to get latest location
+        // VI user: Refresh own profile to get latest location
         const profileRes = await userAPI.getProfile(currentUser._id);
         if (profileRes.ok) {
           const profileData = await profileRes.json();
-          targetLocation = profileData.lastLocation;
+          targetLocation = profileData.lastLocation || null;
         } else {
-          targetLocation = currentUser.lastLocation;
+          targetLocation = currentUser.lastLocation || null;
         }
       }
 
@@ -85,15 +99,15 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
       const res = await historyAPI.getHistory(targetUserId, pageNum, 30);
       const data = await res.json();
 
-      let displayData = data;
+      let displayData = Array.isArray(data) ? data : [];
       if (currentFilter !== 'ALL') {
-        displayData = data.filter((item: any) => item.type === currentFilter);
+        displayData = displayData.filter((item: any) => item.type === currentFilter);
       }
 
       // Limit to 10
       displayData = displayData.slice(0, 10);
 
-      if (data.length < 30) setHasMore(false);
+      if (Array.isArray(data) && data.length < 30) setHasMore(false);
 
       const enrichedData = await Promise.all(displayData.map(async (item: any) => {
         let addr = '';
@@ -114,21 +128,27 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ setPage }) => {
 
       // 3. Get Last Known Location (only on first page)
       if (pageNum === 1) {
-        if (targetLocation) {
+        if (targetLocation && targetLocation.lat) {
           setLastLoc(targetLocation);
-          const addr = await fetchAddress(targetLocation.lat, targetLocation.lng);
-          setLastKnownAddress(addr);
+          // Show coords immediately while Nominatim loads
+          setLastKnownAddress(`${targetLocation.lat.toFixed(4)}, ${targetLocation.lng.toFixed(4)}`);
+          // Then try to get a human-readable address
+          fetchAddress(targetLocation.lat, targetLocation.lng).then(addr => {
+            setLastKnownAddress(addr);
+          });
         } else {
-          setLastKnownAddress("No Location Found");
+          setLastKnownAddress('No location history yet.');
         }
       }
 
     } catch (err) {
       console.error(err);
+      setLastKnownAddress('Error loading location.');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     setPageNumber(1);

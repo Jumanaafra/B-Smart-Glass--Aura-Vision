@@ -36,9 +36,11 @@ const RecenterMap = ({ lat, lng }: { lat: number; lng: number }) => {
 export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const peerConnectionRef = React.useRef<RTCPeerConnection | null>(null);
+  const isLiveRef = React.useRef(false);
 
-  // Default: Chennai (DB load aagura varaikum)
-  const [liveLoc, setLiveLoc] = useState<{ lat: number, lng: number }>({ lat: 13.0827, lng: 80.2707 });
+  // Default to null: we load DB location first, then live updates override it
+  const [liveLoc, setLiveLoc] = useState<{ lat: number, lng: number } | null>(null);
+  const [locLoading, setLocLoading] = useState(true);
 
   const [socketStatus, setSocketStatus] = useState("Connecting...");
   const [isLive, setIsLive] = useState(false);
@@ -71,16 +73,23 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
         })
         .then(data => {
           localStorage.setItem('connectedVIId', data._id);
-          if (!isLive && data.lastLocation?.lat && data.lastLocation?.lng) {
+          // Always load DB location on mount. If live location arrives later, it will override.
+          if (!isLiveRef.current && data.lastLocation?.lat && data.lastLocation?.lng) {
             setLiveLoc(data.lastLocation);
             fetchAddress(data.lastLocation.lat, data.lastLocation.lng);
           }
+          setLocLoading(false);
           if (data.safeZone) {
             setSafeZone(data.safeZone);
             if (data.safeZone.radiusInMeters) setSafeZoneRadius(data.safeZone.radiusInMeters);
           }
         })
-        .catch(err => console.error('Error fetching connected VI last location:', err));
+        .catch(err => {
+          console.error('Error fetching connected VI last location:', err);
+          setLocLoading(false);
+        });
+    } else {
+      setLocLoading(false);
     }
 
     socket.on('connect', () => {
@@ -125,12 +134,14 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
       }
     });
 
-    // 2. Live Location வந்தா உடனே அப்டேட் பண்ணு
+    // 2. Live Location update received
     socket.on('receive-location', (data) => {
       if (data.lat && data.lng) {
+        isLiveRef.current = true;
         setLiveLoc(data);
         fetchAddress(data.lat, data.lng);
         setIsLive(true);
+        setLocLoading(false);
       }
     });
 
@@ -261,41 +272,49 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
           </div>
           <div className="gm-card map-card">
             {/* Zoom Control Enabled (zoomControl={true}) */}
-            <MapContainer center={[liveLoc.lat, liveLoc.lng]} zoom={16} style={{ height: '100%', width: '100%' }} zoomControl={true}>
-              {mapType === 'satellite' ? (
-                <TileLayer
-                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                />
-              ) : (
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-              )}
+            {locLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#888' }}>Loading last known location...</div>
+            ) : liveLoc ? (
+              <MapContainer center={[liveLoc.lat, liveLoc.lng]} zoom={16} style={{ height: '100%', width: '100%' }} zoomControl={true}>
+                {mapType === 'satellite' ? (
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  />
+                ) : (
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                )}
 
-              <Marker position={[liveLoc.lat, liveLoc.lng]}>
-                <Popup className="custom-popup">User is here</Popup>
-              </Marker>
+                <Marker position={[liveLoc.lat, liveLoc.lng]}>
+                  <Popup className="custom-popup">User is here</Popup>
+                </Marker>
 
-              {safeZone && safeZone.enabled && safeZone.lat && safeZone.lng && (
-                <Circle
-                  center={[safeZone.lat, safeZone.lng]}
-                  radius={safeZone.radiusInMeters}
-                  pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.2, weight: 2 }}
-                />
-              )}
+                {safeZone && safeZone.enabled && safeZone.lat && safeZone.lng && (
+                  <Circle
+                    center={[safeZone.lat, safeZone.lng]}
+                    radius={safeZone.radiusInMeters}
+                    pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.2, weight: 2 }}
+                  />
+                )}
 
-              <RecenterMap lat={liveLoc.lat} lng={liveLoc.lng} />
-            </MapContainer>
+                <RecenterMap lat={liveLoc.lat} lng={liveLoc.lng} />
+              </MapContainer>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#888' }}>No location data yet. Waiting for VI user...</div>
+            )}
           </div>
 
           {/* Coordinates & Address Display */}
           <div className="gm-address-box">
-            <div style={{ display: 'flex', gap: '30px' }}>
-              <p><strong>Latitude:</strong> {liveLoc.lat.toFixed(6)}</p>
-              <p><strong>Longitude:</strong> {liveLoc.lng.toFixed(6)}</p>
-            </div>
+            {liveLoc && (
+              <div style={{ display: 'flex', gap: '30px' }}>
+                <p><strong>Latitude:</strong> {liveLoc.lat.toFixed(6)}</p>
+                <p><strong>Longitude:</strong> {liveLoc.lng.toFixed(6)}</p>
+              </div>
+            )}
             <p style={{ marginTop: '8px', fontSize: '0.9rem', color: '#555' }}>
               <strong>Location:</strong> {address}
             </p>
