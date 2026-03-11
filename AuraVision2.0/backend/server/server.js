@@ -498,11 +498,22 @@ app.post('/api/faces/add', authenticateToken, async (req, res) => {
   try {
     const { userId, name, imageBase64 } = req.body; // Frontend sends 'imageBase64'
 
-    if (req.user.id !== userId) return res.status(403).json({ message: 'Forbidden.' });
+    // Determine access logic based on userType and deviceId
+    if (req.user.id !== userId) {
+      if (req.user.userType !== 'GUIDE') {
+        return res.status(403).json({ message: 'Forbidden: Unauthorized access.' });
+      }
+
+      const targetUser = await User.findById(userId);
+      if (!targetUser || targetUser.deviceId !== req.user.deviceId) {
+        return res.status(403).json({ message: 'Forbidden: deviceId mismatch.' });
+      }
+    }
+
     if (!name || !imageBase64) return res.status(400).json({ message: 'Name and image are required.' });
 
     // ENFORCE LIMIT: Max 5 faces per user for the testing phase
-    const count = await Face.countDocuments({ userId: req.user.id });
+    const count = await Face.countDocuments({ userId });
     if (count >= 5) {
       return res.status(400).json({ message: 'Limit Reached: You can only add up to 5 faces during the testing phase.' });
     }
@@ -545,7 +556,16 @@ app.post('/api/faces/add', authenticateToken, async (req, res) => {
 // ── 10. GET ALL FACES ─────────────────────────────────────────────────────────
 app.get('/api/faces/:userId', authenticateToken, async (req, res) => {
   try {
-    if (req.user.id !== req.params.userId) return res.status(403).json({ message: 'Forbidden.' });
+    if (req.user.id !== req.params.userId) {
+      if (req.user.userType !== 'GUIDE') {
+        return res.status(403).json({ message: 'Forbidden: Unauthorized access.' });
+      }
+
+      const targetUser = await User.findById(req.params.userId);
+      if (!targetUser || targetUser.deviceId !== req.user.deviceId) {
+        return res.status(403).json({ message: 'Forbidden: deviceId mismatch.' });
+      }
+    }
     const faces = await Face.find({ userId: req.params.userId }).sort({ createdAt: -1 });
     res.json(faces);
   } catch (e) {
@@ -561,7 +581,17 @@ app.put('/api/faces/:faceId', authenticateToken, async (req, res) => {
 
     const face = await Face.findById(req.params.faceId);
     if (!face) return res.status(404).json({ message: 'Face not found.' });
-    if (req.user.id !== face.userId.toString()) return res.status(403).json({ message: 'Forbidden.' });
+
+    if (req.user.id !== face.userId.toString()) {
+      if (req.user.userType !== 'GUIDE') {
+        return res.status(403).json({ message: 'Forbidden: Unauthorized access.' });
+      }
+
+      const targetUser = await User.findById(face.userId);
+      if (!targetUser || targetUser.deviceId !== req.user.deviceId) {
+        return res.status(403).json({ message: 'Forbidden: deviceId mismatch.' });
+      }
+    }
 
     if (name) face.name = name;
 
@@ -596,7 +626,17 @@ app.delete('/api/faces/:faceId', authenticateToken, async (req, res) => {
   try {
     const face = await Face.findById(req.params.faceId);
     if (!face) return res.status(404).json({ message: 'Face not found.' });
-    if (req.user.id !== face.userId.toString()) return res.status(403).json({ message: 'Forbidden.' });
+
+    if (req.user.id !== face.userId.toString()) {
+      if (req.user.userType !== 'GUIDE') {
+        return res.status(403).json({ message: 'Forbidden: Unauthorized access.' });
+      }
+
+      const targetUser = await User.findById(face.userId);
+      if (!targetUser || targetUser.deviceId !== req.user.deviceId) {
+        return res.status(403).json({ message: 'Forbidden: deviceId mismatch.' });
+      }
+    }
 
     await Face.findByIdAndDelete(req.params.faceId);
     res.json({ message: 'Face deleted successfully.' });
