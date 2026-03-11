@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Page } from '../../types';
 import { Icon } from '../../components/Icon';
 import { Loader } from '../../components/Loader/Loader';
-import { facesAPI } from '../../utils/api';
+import { facesAPI, userAPI } from '../../utils/api';
 import './AddPersonScreen.css';
 
 interface AddPersonScreenProps {
@@ -31,9 +31,26 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
     const currentUser = JSON.parse(userStr);
 
     try {
+      let targetUserId = currentUser._id;
+
+      if (currentUser.userType === 'GUIDE') {
+        const viStr = localStorage.getItem('connectedVIId');
+        if (viStr) {
+          targetUserId = viStr;
+        } else {
+          // Fallback if connectedVIId is not in localStorage yet
+          const viRes = await userAPI.getConnectedVI();
+          if (viRes.ok) {
+            const viData = await viRes.json();
+            targetUserId = viData._id;
+            localStorage.setItem('connectedVIId', targetUserId);
+          }
+        }
+      }
+
       // Use the centralized apiFetch wrapper (facesAPI) so it automatically
       // handles the Vercel/production base URL and the Bearer token headers.
-      const res = await facesAPI.getFaces(currentUser._id);
+      const res = await facesAPI.getFaces(targetUserId);
       const data = await res.json();
       if (res.ok) {
         setSavedFaces(data);
@@ -72,6 +89,11 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
     setIsLoading(true);
 
     try {
+      let targetUserId = currentUser._id;
+      if (currentUser.userType === 'GUIDE') {
+         targetUserId = localStorage.getItem('connectedVIId') || currentUser._id;
+      }
+
       let response;
       if (editingFaceId) {
         response = await facesAPI.updateFace(
@@ -81,7 +103,7 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
         );
       } else {
         response = await facesAPI.addPerson(
-          currentUser._id,
+          targetUserId,
           name,
           imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
         );
