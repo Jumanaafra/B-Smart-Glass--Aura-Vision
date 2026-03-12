@@ -395,15 +395,25 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
 
     let imageBase64 = null;
 
-    // --- OPTIMIZATION: Only grab image if needed ---
+    // --- OPTIMIZATION: Only grab image if camera mode is needed ---
     if (mode === 'vision' || mode === 'face' || mode === 'ocr') {
-      if (!videoRef.current) return;
+      const video = videoRef.current;
+
+      // BUG FIX: If videoWidth/videoHeight are 0, the video stream hasn't decoded
+      // its first frame yet. Canvas will capture a blank black image and send it
+      // to the AI, which always responds "I cannot see anything clear."
+      if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+        setStatus("Camera not ready. Please wait a moment and try again. 📷");
+        speak("Camera is still loading. Please try again in a moment.");
+        return;
+      }
+
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
-      if (ctx) ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      imageBase64 = canvas.toDataURL('image/jpeg', 0.6);
+      if (ctx) ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      imageBase64 = canvas.toDataURL('image/jpeg', 0.8); // Raised from 0.6 to 0.8 for better quality
     }
 
     const userStr = localStorage.getItem('currentUser');
@@ -413,9 +423,15 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
     try {
       const response = await aiAPI.processImage(imageBase64, query, userId, language, mode);
       const data = await response.json();
-      setAiReply(data.description || "Server Error.");
+      const reply = data.description || "Server Error.";
+      setAiReply(reply);
       setStatus(language === 'TG' ? "Badhil vandhuchu ✅" : "Done ✅");
-      speak(data.description);
+      setAiSpeaking(true);
+      speak(reply);
+      // Reset speaking state after estimated speech duration
+      const wordCount = reply.split(' ').length;
+      const estimatedMs = Math.max(2000, wordCount * 400);
+      setTimeout(() => setAiSpeaking(false), estimatedMs);
     } catch (error) {
       setStatus("Connection Error ❌");
       speak("Internet error.");
