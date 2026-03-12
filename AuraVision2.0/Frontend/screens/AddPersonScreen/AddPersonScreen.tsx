@@ -25,31 +25,44 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
     fetchSavedFaces();
   }, []);
 
-  const fetchSavedFaces = async () => {
+  /**
+   * Resolves the target userId for face storage.
+   * For a Guide: always the connected VI user's _id (resolved via API if not cached).
+   * For a VI user: their own _id.
+   * Returns null if resolution fails — caller must abort the operation.
+   */
+  const getTargetUserId = async (): Promise<string | null> => {
     const userStr = localStorage.getItem('currentUser');
-    if (!userStr) return;
+    if (!userStr) return null;
     const currentUser = JSON.parse(userStr);
 
+    if (currentUser.userType !== 'GUIDE') {
+      return currentUser._id;
+    }
+
+    // Guide: always use VI user's _id
+    const cached = localStorage.getItem('connectedVIId');
+    if (cached) return cached;
+
+    // Not cached — fetch from backend
     try {
-      let targetUserId = currentUser._id;
-
-      if (currentUser.userType === 'GUIDE') {
-        const viStr = localStorage.getItem('connectedVIId');
-        if (viStr) {
-          targetUserId = viStr;
-        } else {
-          // Fallback if connectedVIId is not in localStorage yet
-          const viRes = await userAPI.getConnectedVI();
-          if (viRes.ok) {
-            const viData = await viRes.json();
-            targetUserId = viData._id;
-            localStorage.setItem('connectedVIId', targetUserId);
-          }
-        }
+      const viRes = await userAPI.getConnectedVI();
+      if (viRes.ok) {
+        const viData = await viRes.json();
+        localStorage.setItem('connectedVIId', viData._id);
+        return viData._id;
       }
+    } catch (e) {
+      console.error('Failed to resolve connected VI user', e);
+    }
+    return null;
+  };
 
-      // Use the centralized apiFetch wrapper (facesAPI) so it automatically
-      // handles the Vercel/production base URL and the Bearer token headers.
+  const fetchSavedFaces = async () => {
+    try {
+      const targetUserId = await getTargetUserId();
+      if (!targetUserId) return;
+
       const res = await facesAPI.getFaces(targetUserId);
       const data = await res.json();
       if (res.ok) {
@@ -78,20 +91,13 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
   const handleSave = async () => {
     if (!name) return;
 
-    const userStr = localStorage.getItem('currentUser');
-    if (!userStr) {
-      alert("Please login first!");
-      setPage(Page.GUIDE_LOGIN);
-      return;
-    }
-    const currentUser = JSON.parse(userStr);
-
     setIsLoading(true);
-
     try {
-      let targetUserId = currentUser._id;
-      if (currentUser.userType === 'GUIDE') {
-         targetUserId = localStorage.getItem('connectedVIId') || currentUser._id;
+      const targetUserId = await getTargetUserId();
+      if (!targetUserId) {
+        alert('Could not resolve the VI user. Please ensure you are logged in and paired to a VI user.');
+        setIsLoading(false);
+        return;
       }
 
       let response;
@@ -116,7 +122,7 @@ export const AddPersonScreen: React.FC<AddPersonScreenProps> = ({ setPage }) => 
         setName('');
         setImagePreview(null);
         setEditingFaceId(null);
-        await fetchSavedFaces(); // Refresh the gallery list
+        await fetchSavedFaces();
         setTimeout(() => {
           setShowSuccess(false);
         }, 3000);

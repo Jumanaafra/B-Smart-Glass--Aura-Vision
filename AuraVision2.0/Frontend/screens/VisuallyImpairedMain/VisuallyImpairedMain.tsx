@@ -15,6 +15,10 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
   const videoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const fallTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // FIX: Always-current socket ref prevents stale-closure bugs in async callbacks
+  const socketRef = useRef<any>(null);
+  // FIX: Guard vi-ready until after join-room is confirmed
+  const roomJoinedRef = useRef(false);
 
   const [status, setStatus] = useState("Tap screen to ask...");
   const [gpsStatus, setGpsStatus] = useState("Waiting for GPS...");
@@ -38,11 +42,17 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
     // In prod: VITE_BACKEND_URL points directly to the backend server
     const socketUrl = (import.meta as any).env?.VITE_BACKEND_URL || window.location.origin;
     const newSocket = io(socketUrl);
+    // FIX: Keep socketRef always in sync so async callbacks never capture a stale null
+    socketRef.current = newSocket;
     setSocket(newSocket);
     const deviceId = getUserDeviceId();
 
     newSocket.on('connect', () => {
       newSocket.emit('join-room', deviceId);
+      // FIX: Mark room as joined, then start camera — guarantees vi-ready fires
+      // only after the server has processed join-room for this socket
+      roomJoinedRef.current = true;
+      startCamera();
     });
 
     if ("geolocation" in navigator) {
@@ -70,40 +80,47 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
 
       return () => {
         navigator.geolocation.clearWatch(watchId);
+        roomJoinedRef.current = false;
         newSocket.disconnect();
       };
     } else {
       setGpsStatus("Geolocation Not Supported");
-      return () => newSocket.disconnect();
+      return () => {
+        roomJoinedRef.current = false;
+        newSocket.disconnect();
+      };
     }
   }, []);
 
-  useEffect(() => {
-    const startCamera = async () => {
+  // FIX: startCamera is now a stable function (not inside a useEffect) so it can be
+  // called from the on('connect') handler after join-room is confirmed.
+  // socketRef.current is used instead of the socket state to avoid stale closures.
+  const startCamera = async () => {
+    try {
+      let stream;
       try {
-        let stream;
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        } catch (e) {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        }
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        speak("I am ready.");
-        // Notify the Guide that camera/stream is ready for WebRTC
-        if (socket) {
-          socket.emit('vi-ready');
-        }
-      } catch (err) {
-        setStatus("Camera Error 🔴");
-        speak("Camera error.");
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      } catch (e) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
       }
-    };
-    startCamera();
-  }, [socket]);
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      speak("I am ready.");
+      // FIX: Only emit vi-ready after room is confirmed joined, using the live ref
+      if (socketRef.current && roomJoinedRef.current) {
+        socketRef.current.emit('vi-ready');
+      }
+    } catch (err) {
+      setStatus("Camera Error 🔴");
+      speak("Camera error.");
+    }
+  };
 
   // --- WebRTC Broadcaster Setup ---
   useEffect(() => {
     if (!socket) return;
+    // FIX: Capture the socket ref value at effect-run time for use in cleanup,
+    // guaranteeing the teardown always removes listeners from the correct socket
+    const activeSocket = socketRef.current;
 
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -118,40 +135,61 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
       }
 
-      // Send local ICE candidates to the Guide
+      // FIX: Use activeSocket (captured ref) to ensure ICE candidates use the live socket
       pc.onicecandidate = (event) => {
-        if (event.candidate) socket.emit('webrtc-candidate', event.candidate);
+        if (event.candidate && activeSocket) activeSocket.emit('webrtc-candidate', event.candidate);
       };
 
       return pc;
     };
 
+    // Queue for ICE candidates that arrive before remote description is set
+    const candidatesQueue: RTCIceCandidateInit[] = [];
+
     // 1. Guide requests connection -> We generate an Offer
-    socket.on('request-webrtc', async () => {
+    const handleRequestWebRTC = async () => {
       const pc = setupRTC();
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      socket.emit('webrtc-offer', offer);
-    });
+      if (activeSocket) activeSocket.emit('webrtc-offer', offer);
+    };
 
     // 2. Guide sends Answer back
-    socket.on('webrtc-answer', async (answer) => {
+    const handleWebRTCAnswer = async (answer: RTCSessionDescriptionInit) => {
       if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'closed') {
         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        // Flush queue
+        while (candidatesQueue.length > 0) {
+          const candidate = candidatesQueue.shift();
+          if (candidate) {
+            await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+        }
       }
-    });
+    };
 
     // 3. Guide sends ICE Candidates
-    socket.on('webrtc-candidate', async (candidate) => {
+    const handleWebRTCCandidate = async (candidate: RTCIceCandidateInit) => {
       if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'closed') {
-        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        if (peerConnectionRef.current.remoteDescription) {
+          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        } else {
+          candidatesQueue.push(candidate);
+        }
       }
-    });
+    };
+
+    socket.on('request-webrtc', handleRequestWebRTC);
+    socket.on('webrtc-answer', handleWebRTCAnswer);
+    socket.on('webrtc-candidate', handleWebRTCCandidate);
 
     return () => {
-      socket.off('request-webrtc');
-      socket.off('webrtc-answer');
-      socket.off('webrtc-candidate');
+      // FIX: Use activeSocket so cleanup always targets the right socket instance
+      if (activeSocket) {
+        activeSocket.off('request-webrtc', handleRequestWebRTC);
+        activeSocket.off('webrtc-answer', handleWebRTCAnswer);
+        activeSocket.off('webrtc-candidate', handleWebRTCCandidate);
+      }
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
@@ -260,24 +298,98 @@ export const VisuallyImpairedMain: React.FC<VisuallyImpairedMainProps> = ({ setP
   };
 
   const analyzeImage = async (query: string) => {
-    // --- MODE DETECTION ---
-    const VISION_KEYWORDS = ["look", "see", "what is this", "describe", "paar", "munnadi", "photo", "image", "enna", "irukku", "surroundings"];
-    const FACE_KEYWORDS = ["who", "yaar", "face", "mugam", "person", "aalu", "ivan", "ival", "aver"];
-    const OCR_KEYWORDS = ["read", "text", "paper", "menu", "book", "board", "padi", "ezhuthu", "words"];
+    // ─── MODE DETECTION ──────────────────────────────────────────────────────
+    // Priority order: FACE > OCR > VISION > CHAT
+    // "vision" is the default fallback since VI users almost always need
+    // camera context. Pure text chat is only triggered by explicit chat words.
 
-    let mode = "chat";
-    // Check OCR first as it's very specific
-    for (const word of OCR_KEYWORDS) {
-      if (query.includes(word)) { mode = "ocr"; break; }
+    const FACE_KEYWORDS = [
+      // English — identity
+      "who", "who is", "who's", "identify", "recognize", "recognition",
+      "know this person", "know him", "know her", "do i know",
+      "have we met", "name of this person", "tell me who",
+      // English — body/face
+      "face", "person", "people", "man", "woman", "boy", "girl",
+      "someone", "anyone", "anybody", "someone here", "standing",
+      // Tamil/Tanglish
+      "yaar", "yaaru", "evan", "ivan", "ival", "ever", "avar",
+      "mugam", "aalu", "aval", "paathirukkiya", "theriyuma",
+      "theriyudha", "yaarunu", "ithu yaar",
+    ];
+
+    const OCR_KEYWORDS = [
+      // English — reading
+      "read", "reading", "what does it say", "what does this say",
+      "read this", "tell me what's written", "what is written",
+      "text", "writing", "written", "letters", "words", "number",
+      "sign", "label", "notice", "display", "screen", "caption",
+      // Specific document types
+      "paper", "document", "page", "bill", "receipt", "invoice",
+      "menu", "board", "banner", "poster", "letter", "envelope",
+      "book", "magazine", "newspaper", "article",
+      "price", "amount", "cost", "total",
+      // Tamil/Tanglish
+      "padi", "padikka", "ezhuthu", "enna ezhuthirukku",
+      "enna sollutu irukku", "board la enna", "paper la enna",
+    ];
+
+    const VISION_KEYWORDS = [
+      // English — general scene
+      "what", "where am i", "what is this", "what's this", "what's in front",
+      "what's around", "what's here", "what's there", "what do you see",
+      "describe", "description", "explain", "tell me about",
+      "look", "see", "check", "scan", "analyze", "analyse", "inspect",
+      "show", "find", "spot", "notice", "observe",
+      // Environment
+      "surroundings", "around me", "near me", "in front", "ahead",
+      "background", "scene", "area", "place", "location", "room",
+      "road", "path", "obstacle", "danger", "safe", "clear",
+      "colour", "color", "shape", "size", "big", "small",
+      // Objects
+      "object", "thing", "item", "stuff", "this", "that",
+      "door", "stairs", "car", "vehicle", "table", "chair",
+      "photo", "image", "picture", "camera",
+      // Tamil/Tanglish
+      "paar", "paaru", "munnadi", "enna irukku", "enna irukkuthu",
+      "enna pakka mudiyuthu", "enna theriyuthu", "ithu enna",
+      "idhu enna", "solla", "sollungo", "describe pannu",
+      "irukku", "irukka", "pathu sollu", "surrounding",
+    ];
+
+    const CHAT_KEYWORDS = [
+      // Pure conversational — no camera needed
+      "hello", "hi", "hey", "how are you", "good morning", "good night",
+      "thank you", "thanks", "okay", "alright", "yes", "no",
+      "tell me a joke", "joke", "story", "chat", "talk",
+      "what time", "what day", "what date", "today", "tomorrow",
+      "help", "emergency", "call", "phone",
+      "weather", "temperature", "news",
+      // Tamil/Tanglish
+      "vanakkam", "nandri", "sari", "aamam", "illai",
+      "eppadi irukeenga", "eppadi irukkeenga", "kaalam",
+    ];
+
+    // Check in priority order: FACE first, then OCR, then VISION, then CHAT
+    let mode = "vision"; // DEFAULT: camera context is almost always needed for VI users
+
+    // 1. FACE — most specific intent
+    for (const word of FACE_KEYWORDS) {
+      if (query.includes(word)) { mode = "face"; break; }
     }
-    if (mode === "chat") {
-      for (const word of VISION_KEYWORDS) {
-        if (query.includes(word)) { mode = "vision"; break; }
+    // 2. OCR — text reading intent
+    if (mode === "vision") {
+      for (const word of OCR_KEYWORDS) {
+        if (query.includes(word)) { mode = "ocr"; break; }
       }
     }
-    if (mode === "chat") {
-      for (const word of FACE_KEYWORDS) {
-        if (query.includes(word)) { mode = "face"; break; }
+    // 3. VISION — general scene (already default, but explicit keywords confirm it)
+    // 4. CHAT — only if query matches pure conversational words AND nothing else matched
+    if (mode === "vision") {
+      const isChatOnly = CHAT_KEYWORDS.some(word => query.includes(word));
+      // Only switch to chat if it's a chat keyword AND no vision words are in the query
+      const hasVisionWord = VISION_KEYWORDS.some(word => query.includes(word));
+      if (isChatOnly && !hasVisionWord) {
+        mode = "chat";
       }
     }
 
