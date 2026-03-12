@@ -35,8 +35,10 @@ const RecenterMap = ({ lat, lng }: { lat: number; lng: number }) => {
 
 export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement>(null); // Hardware device JPEG frame canvas
   const peerConnectionRef = React.useRef<RTCPeerConnection | null>(null);
   const isLiveRef = React.useRef(false);
+  const [isHardwareFeed, setIsHardwareFeed] = React.useState(false); // true when hardware device is sending frames
 
   // Default to null: we load DB location first, then live updates override it
   const [liveLoc, setLiveLoc] = useState<{ lat: number, lng: number } | null>(null);
@@ -170,6 +172,29 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
       socket.emit('request-webrtc');
     });
 
+    // Hardware device sends JPEG frames via socket (not WebRTC)
+    // The server relays send-video-frame → receive-video-frame to all room members
+    socket.on('receive-video-frame', (frameData: string) => {
+      // Switch UI to canvas/hardware mode on first frame
+      setIsHardwareFeed(true);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // frameData is a base64-encoded JPEG string from the hardware device
+      const img = new Image();
+      img.onload = () => {
+        // Match canvas size to incoming frame
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+      };
+      const src = frameData.startsWith('data:') ? frameData : `data:image/jpeg;base64,${frameData}`;
+      img.src = src;
+    });
+
     // 2. Live Location update received
     socket.on('receive-location', (data) => {
       if (data.lat && data.lng) {
@@ -257,19 +282,29 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
 
       <main className="gm-main">
 
-        {/* 1. Live Video Section (Card Style) */}
+        {/* 1. Live Video Section — auto-switches between WebRTC (web VI) and JPEG canvas (hardware) */}
         <div className="gm-section">
-          <h2 className="gm-section-title">Live Vision (WebRTC)</h2>
+          <h2 className="gm-section-title">
+            Live Vision {isHardwareFeed ? '(Hardware Device)' : '(WebRTC)'}
+          </h2>
           <div className="gm-card">
+            {/* WebRTC video — hidden when hardware device is streaming */}
             <video
               ref={videoRef}
               autoPlay
               playsInline
-              muted // Mute Guide's feedback loop
+              muted
               className="gm-video"
-              style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+              style={{ objectFit: 'cover', width: '100%', height: '100%', display: isHardwareFeed ? 'none' : 'block' }}
             />
-            <div className="gm-live-tag">LIVE</div>
+            {/* Hardware JPEG canvas — hidden when WebRTC is streaming */}
+            <canvas
+              ref={canvasRef}
+              style={{ objectFit: 'cover', width: '100%', height: '100%', display: isHardwareFeed ? 'block' : 'none', background: '#000' }}
+            />
+            <div className="gm-live-tag" style={{ background: isHardwareFeed ? '#f59e0b' : '#ef4444' }}>
+              {isHardwareFeed ? '📡 HARDWARE' : 'LIVE'}
+            </div>
           </div>
         </div>
 

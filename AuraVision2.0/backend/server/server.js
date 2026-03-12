@@ -867,7 +867,25 @@ app.post('/api/ai/describe', async (req, res) => {
           const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
 
           if (detection) {
-            const faces = await Face.find({ userId }).select('name descriptor');
+            // FIXED: Resolve VI user by deviceId from request body (same as web route fix)
+            let faceUserId = userId;
+            try {
+              const hwDeviceId = req.body.deviceId;
+              if (hwDeviceId) {
+                const viUser = await User.findOne({
+                  deviceId: hwDeviceId,
+                  userType: { $in: ['VI', 'VISUALLY_IMPAIRED'] }
+                }).select('_id');
+                if (viUser) {
+                  faceUserId = viUser._id.toString();
+                  console.log(`✅ Hardware face lookup resolved by deviceId: ${faceUserId}`);
+                }
+              }
+            } catch (resolveErr) {
+              console.warn('⚠️ Hardware: Failed to resolve VI user by deviceId:', resolveErr.message);
+            }
+
+            const faces = await Face.find({ userId: faceUserId }).select('name descriptor');
             const validFaces = faces.filter(f => f.descriptor && f.descriptor.length > 0);
 
             if (validFaces.length > 0) {
