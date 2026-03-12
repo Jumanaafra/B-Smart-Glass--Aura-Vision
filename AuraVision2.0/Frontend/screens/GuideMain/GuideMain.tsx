@@ -95,15 +95,25 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
     socket.on('connect', () => {
       setSocketStatus("Connected 🟢");
       socket.emit('join-room', deviceId);
-      // Ask visually impaired unit to start WebRTC process
-      socket.emit('request-webrtc');
+      // RESTORED: Guide needs to request WebRTC in case the VI user is already connected.
+      // We add a small delay to ensure the server has processed the join-room event.
+      setTimeout(() => {
+        socket.emit('request-webrtc');
+      }, 500);
     });
 
     // --- WebRTC Receiver Setup ---
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     const setupRTC = () => {
-      if (peerConnectionRef.current) return peerConnectionRef.current;
+      // FIX: Always create a fresh RTCPeerConnection.
+      // The old guard `if (peerConnectionRef.current) return ...` was causing
+      // a CLOSED peer connection to be reused when vi-ready fired a second time
+      // (e.g. after a VI page refresh), breaking re-negotiation entirely.
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
       const pc = new RTCPeerConnection(configuration);
       peerConnectionRef.current = pc;
 
@@ -120,9 +130,19 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
       return pc;
     };
 
+    // Queue for ICE candidates that arrive before remote description is set
+    const candidatesQueue: RTCIceCandidateInit[] = [];
+
     socket.on('webrtc-offer', async (offer) => {
       const pc = setupRTC();
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      // Flush queue
+      while (candidatesQueue.length > 0) {
+        const candidate = candidatesQueue.shift();
+        if (candidate) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      }
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit('webrtc-answer', answer);
@@ -130,7 +150,11 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
 
     socket.on('webrtc-candidate', async (candidate) => {
       if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'closed') {
-        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        if (peerConnectionRef.current.remoteDescription) {
+          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        } else {
+          candidatesQueue.push(candidate);
+        }
       }
     });
 

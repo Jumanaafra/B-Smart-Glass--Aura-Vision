@@ -713,7 +713,29 @@ const processImageHandler = async (req, res) => {
           const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
 
           if (detection) {
-            const faces = await Face.find({ userId }).select('name descriptor');
+            // FIXED: Resolve the VI user's _id by deviceId from the JWT token.
+            // This is authoritative and works regardless of what userId the
+            // frontend sends. For a Guide (userType=GUIDE), the JWT contains
+            // the shared deviceId — we look up the VI user by that deviceId.
+            // For a VI user, we use their own _id directly.
+            let faceUserId = userId; // Fallback to frontend-provided userId
+            try {
+              const tokenDeviceId = req.user && req.user.deviceId;
+              if (tokenDeviceId) {
+                const viUser = await User.findOne({
+                  deviceId: tokenDeviceId,
+                  userType: { $in: ['VI', 'VISUALLY_IMPAIRED'] }
+                }).select('_id');
+                if (viUser) {
+                  faceUserId = viUser._id.toString();
+                  console.log(`✅ Face lookup resolved by deviceId: VI userId=${faceUserId}`);
+                }
+              }
+            } catch (resolveErr) {
+              console.warn('⚠️ Failed to resolve VI user by deviceId, using frontend userId:', resolveErr.message);
+            }
+
+            const faces = await Face.find({ userId: faceUserId }).select('name descriptor');
             const validFaces = faces.filter(f => f.descriptor && f.descriptor.length > 0);
 
             if (validFaces.length > 0) {
