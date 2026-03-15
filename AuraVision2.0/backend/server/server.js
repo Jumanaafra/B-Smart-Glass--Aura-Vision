@@ -102,11 +102,11 @@ loadFaceModels();
 // ── HELPER: Generate JWT Token ────────────────────────────────────────────────────
 const generateToken = (user) => {
   return jwt.sign(
-    { 
-      id: user._id.toString(), 
-      email: user.email, 
-      userType: user.userType, 
-      deviceId: user.deviceId 
+    {
+      id: user._id.toString(),
+      email: user.email,
+      userType: user.userType,
+      deviceId: user.deviceId
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
@@ -170,67 +170,118 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send-location', async (data) => {
-    const targetDeviceId = socket.deviceId || data.deviceId;
-
     // Auto-bind deviceId if not joined yet (for Python hardware clients)
     if (data.deviceId && !socket.deviceId) {
       socket.deviceId = data.deviceId;
       socket.join(data.deviceId);
-      console.log(`Socket ${socket.id} auto-joined room ${data.deviceId} via location update`);
+      console.log(`[GPS] Socket ${socket.id} auto-joined room '${data.deviceId}'`);
     }
 
-    if (targetDeviceId) {
-      socket.to(targetDeviceId).emit('receive-location', data);
-      try {
-        const user = await User.findOneAndUpdate(
-          { deviceId: targetDeviceId, userType: { $in: ['VI', 'VISUALLY_IMPAIRED'] } },
-          { $set: { lastLocation: { lat: data.lat, lng: data.lng } } },
-          { new: true }
-        );
+    const targetDeviceId = socket.deviceId || data.deviceId;
 
-        // Throttle location history to 1 entry per 60 seconds
-        if (user) {
-          const lastSaved = locationThrottle.get(user._id.toString()) || 0;
-          if (Date.now() - lastSaved > 60000) {
-            locationThrottle.set(user._id.toString(), Date.now());
-            await new History({
-              userId: user._id,
-              type: 'LOCATION',
-              content: 'Location Update',
-              location: { lat: data.lat, lng: data.lng }
-            }).save();
-          }
-        }
+    if (!targetDeviceId) {
+      console.warn('[GPS] send-location ignored — no deviceId on socket or in payload');
+      return;
+    }
 
-        // Geofencing Check
-        if (user && user.safeZone && user.safeZone.enabled && user.safeZone.lat && user.safeZone.lng) {
-          const R = 6371e3; // Earth radius in meters
-          const φ1 = user.safeZone.lat * Math.PI / 180;
-          const φ2 = data.lat * Math.PI / 180;
-          const Δφ = (data.lat - user.safeZone.lat) * Math.PI / 180;
-          const Δλ = (data.lng - user.safeZone.lng) * Math.PI / 180;
+    // Coerce lat/lng to numbers (Python may send floats as strings in some serialise paths)
+    const lat = parseFloat(data.lat);
+    const lng = parseFloat(data.lng);
 
-          const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const distance = R * c;
+    if (isNaN(lat) || isNaN(lng)) {
+      console.warn(`[GPS] Invalid lat/lng received: lat=${data.lat}  lng=${data.lng}`);
+      return;
+    }
 
-          if (distance > user.safeZone.radiusInMeters) {
-            socket.to(socket.deviceId).emit('geofence-alert', {
-              userId: user._id,
-              distance: Math.round(distance),
-              lat: data.lat,
-              lng: data.lng
-            });
-          }
-        }
-      } catch (err) {
-        console.error('Location Update Error:', err);
+    const locationPayload = { deviceId: targetDeviceId, lat, lng };
+    console.log(`[GPS] Relaying to room '${targetDeviceId}'  lat=${lat}  lng=${lng}`);
+
+    // Use io.to() (not socket.to()) so ALL sockets in the room receive it,
+    // including cases where the Guide reconnected after the Pi joined.
+    io.to(targetDeviceId).emit('receive-location', locationPayload);
+
+    try {
+      const user = await User.findOneAndUpdate(
+        { deviceId: targetDeviceId, userType: { $in: ['VI', 'VISUALLY_IMPAIRED'] } },
+        { $set: { lastLocation: { lat, lng } } },
+        { new: true }
+      );
+
+      if (!user) {
+        console.warn(`[GPS] No VI user found in DB for deviceId='${targetDeviceId}' — location NOT saved`);
       }
+
+      // Throttle location history to 1 entry per 60 seconds
+      if (user) {
+        const lastSaved = locationThrottle.get(user._id.toString()) || 0;
+        if (Date.now() - lastSaved > 60000) {
+          locationThrottle.set(user._id.toString(), Date.now());
+          await new History({
+            userId: user._id,
+            type: 'LOCATION',
+            content: 'Location Update',
+            location: { lat, lng }
+          }).save();
+        }
+      }
+
+      // Geofencing Check
+      if (user && user.safeZone && user.safeZone.enabled && user.safeZone.lat && user.safeZone.lng) {
+        const R = 6371e3;
+        const φ1 = user.safeZone.lat * Math.PI / 180;
+        const φ2 = lat * Math.PI / 180;
+        const Δφ = (lat - user.safeZone.lat) * Math.PI / 180;
+        const Δλ = (lng - user.safeZone.lng) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = R * c;
+
+        if (distance > user.safeZone.radiusInMeters) {
+          io.to(targetDeviceId).emit('geofence-alert', {
+            userId: user._id,
+            distance: Math.round(distance),
+            lat,
+            lng
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[GPS] Location Update Error:', err);
     }
   });
 
   socket.on('sos-alert', (data) => {
     if (socket.deviceId) socket.to(socket.deviceId).emit('sos-alert', data);
+  });
+
+  // ── HARDWARE VIDEO FRAME RELAY ─────────────────────────────────────────────
+  // Hardware client emits 'send-video-frame' with a raw base64 string.
+  // Server wraps it into a structured { deviceId, image } payload and
+  // broadcasts to the room as 'receive-video-frame'.
+  socket.on('send-video-frame', (frameData) => {
+    // Auto-bind deviceId if the hardware client didn't call join-room first
+    if (!socket.deviceId) {
+      console.warn('[FRAME] send-video-frame received but socket has no deviceId — frame dropped');
+      return;
+    }
+
+    // frameData may be a raw base64 string OR already a data URI
+    let imageUri;
+    if (typeof frameData === 'string') {
+      imageUri = frameData.startsWith('data:') ? frameData : `data:image/jpeg;base64,${frameData}`;
+    } else if (frameData && typeof frameData === 'object' && frameData.image) {
+      // Accept { image: '...' } object payload from older clients
+      imageUri = frameData.image;
+    } else {
+      return; // Unknown format — drop silently
+    }
+
+    // Relay to all other sockets in the room (Guide dashboard)
+    socket.to(socket.deviceId).emit('receive-video-frame', {
+      deviceId: socket.deviceId,
+      image: imageUri,
+    });
   });
 
   socket.on('disconnect', () => console.log('User disconnected:', socket.id));
@@ -1149,6 +1200,31 @@ const seedDemoUsers = async () => {
       });
       await testGuideUser.save();
       console.log('✅ Seeded Test Guide User (test_guide@auravision.com / test1234)');
+    }
+
+    // 4. Seed Guest Guide — linked to device_001 (same as hardware@auravision.com VI user)
+    //    This is the account used for live hardware testing on the Guide dashboard.
+    //    IMPORTANT: deviceId MUST match the Pi's DEVICE_ID env var ('device_001').
+    const guestEmail = 'guest@auravision.com';
+    let guestUser = await User.findOne({ email: guestEmail });
+    if (!guestUser) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('aura1234', salt);
+      guestUser = new User({
+        fullName: 'Guest Guide',
+        email: guestEmail,
+        password: hashedPassword,
+        userType: 'GUIDE',
+        deviceId: 'device_001',   // ← matches Pi DEVICE_ID and hardware@auravision.com VI user
+      });
+      await guestUser.save();
+      console.log('✅ Seeded Guest Guide User (guest@auravision.com / aura1234, deviceId: device_001)');
+    } else if (guestUser.deviceId !== 'device_001') {
+      // Auto-repair: if the account was manually created with the wrong deviceId, fix it now
+      await User.updateOne({ email: guestEmail }, { $set: { deviceId: 'device_001' } });
+      console.log(`🔧 Repaired guest@auravision.com deviceId → 'device_001' (was: '${guestUser.deviceId}')`);
+    } else {
+      console.log('ℹ️  Guest Guide user already exists with correct deviceId.');
     }
 
   } catch (error) {

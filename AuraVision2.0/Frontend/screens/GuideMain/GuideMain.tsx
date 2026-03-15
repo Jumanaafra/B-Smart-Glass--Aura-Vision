@@ -173,58 +173,81 @@ export const GuideMain: React.FC<GuideMainProps> = ({ setPage }) => {
     });
 
     // Hardware device sends JPEG frames via socket (not WebRTC)
-    // The server relays send-video-frame → receive-video-frame to all room members
-    socket.on('receive-video-frame', (frameData: string) => {
-      // Switch UI to canvas/hardware mode on first frame
+    // Server relays as: { deviceId: "...", image: "data:image/jpeg;base64,..." }
+    const handleVideoFrame = (payload: { deviceId: string; image: string } | string) => {
+      // Support both the new structured payload { deviceId, image } and legacy plain string
+      const imageUri = typeof payload === 'string' ? payload
+        : (payload as any).image ?? null;
+
+      if (!imageUri) return;
+
       setIsHardwareFeed(true);
       const canvas = canvasRef.current;
       if (!canvas) return;
-
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // frameData is a base64-encoded JPEG string from the hardware device
       const img = new Image();
       img.onload = () => {
-        // Match canvas size to incoming frame
         canvas.width = img.width;
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
       };
-      const src = frameData.startsWith('data:') ? frameData : `data:image/jpeg;base64,${frameData}`;
-      img.src = src;
-    });
+      img.src = imageUri;
+    };
 
-    // 2. Live Location update received
-    socket.on('receive-location', (data) => {
-      if (data.lat && data.lng) {
+    socket.on('receive-video-frame', handleVideoFrame);
+
+    // 2. Live Location update — payload: { deviceId, lat, lng }
+    const handleLocation = (data: { deviceId: string; lat: number; lng: number }) => {
+      const lat = parseFloat(data.lat as any);
+      const lng = parseFloat(data.lng as any);
+      if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
         isLiveRef.current = true;
-        setLiveLoc(data);
-        fetchAddress(data.lat, data.lng);
+        setLiveLoc({ lat, lng });
+        fetchAddress(lat, lng);
         setIsLive(true);
         setLocLoading(false);
       }
-    });
+    };
+    socket.on('receive-location', handleLocation);
 
-    socket.on('geofence-alert', (data) => {
+    const handleGeofence = (data: any) => {
       setAlert({
         type: 'GEOFENCE',
         message: `User has exited the safe zone! (${data.distance}m away from the zone center)`,
         lat: data.lat,
         lng: data.lng
       });
-    });
+    };
+    socket.on('geofence-alert', handleGeofence);
 
-    socket.on('sos-alert', (data) => {
+    const handleSos = (data: any) => {
       setAlert({
         type: 'SOS',
         message: 'EMERGENCY: Fall Detected or SOS Triggered!',
         lat: data.lat,
         lng: data.lng
       });
-    });
+    };
+    socket.on('sos-alert', handleSos);
 
-    return () => { socket.disconnect(); };
+    // Cleanup: remove all listeners before disconnecting to prevent memory leaks
+    return () => {
+      socket.off('receive-video-frame', handleVideoFrame);
+      socket.off('receive-location', handleLocation);
+      socket.off('geofence-alert', handleGeofence);
+      socket.off('sos-alert', handleSos);
+      socket.off('vi-ready');
+      socket.off('webrtc-offer');
+      socket.off('webrtc-answer');
+      socket.off('webrtc-candidate');
+      socket.disconnect();
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+    };
   }, []);
 
   const handleSaveSafeZone = async (enabled: boolean) => {
